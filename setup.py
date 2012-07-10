@@ -32,7 +32,7 @@ setup(
     version = get_version(),
     author = "Martijn Meijers",
     author_email = "b dot m dot meijers at tudelft dot nl",
-    license = "",
+    license = "MIT license",
     description = "",
     url = "",
     package_dir = {'':'src'},

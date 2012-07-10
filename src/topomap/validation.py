@@ -15,6 +15,7 @@ class TopoMapValidator(object):
         self.validate_edges_around_node()
         self.validate_angles()
         self.validate_faces()
+        self.validate_face_geometries()
 
     def validate_angles(self):
         for he in self.topo_map.half_edges.itervalues():
@@ -27,6 +28,10 @@ class TopoMapValidator(object):
                 assert len(face.loops) > 0
             except:
                 raise Exception('{0} has no loops'.format(face))
+
+    def validate_face_geometries(self):
+        for face in self.topo_map.faces.itervalues():
+            face.multigeometry()
 
     def validate_loops(self):
         for he in self.topo_map.half_edges.itervalues():

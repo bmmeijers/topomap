@@ -1,4 +1,7 @@
+from sink import use
+use('oracle')
 from sink import Field, Schema, Index, Layer, dumps
+
 import warnings
 
 class TopoMapExporter(object):
@@ -8,11 +11,16 @@ class TopoMapExporter(object):
     @classmethod
     def export(cls, topo_map, name, wings = False):
         if wings:
-            warnings.warn("Wings have not been tested/are not fully implemented")
+            warnings.warn("Wings have not been fully tested")
         # Make schema
         # NODES
         node_id = Field("node_id", "numeric")
         point = Field("geometry", "point")
+        
+        # TODO:
+        # - edge_id with node table -> start node = +, end_node = - of edge
+        # - face_id with node table -> contained in face <face_id>
+        
         #
         schema = Schema()
         schema.add_field(node_id)
@@ -41,6 +49,12 @@ class TopoMapExporter(object):
         #
         faces = Layer(schema, '{}_face'.format(name), srid = topo_map.srid)
         
+        # TODO:
+        # - boundary_edge_id: signed edge on outer loop, which starts loop in
+        #   correct direction
+        # - island_edge_id list
+        # - island_node_id list
+        
         # EDGES
         edge_id = Field("edge_id", "numeric")
         left = Field("left_face_id", "numeric")
@@ -53,12 +67,12 @@ class TopoMapExporter(object):
             #   \     / 
             #    \   /  
             #     \e/   
-            # lccw ^ rcw
-            #      |  
+            # lccw ^ rcw / prvr
+            # nxtl |  
             #(LF)  |  (RF)
             #      |  
-            #  lcw o rccw
-            #     /s\ 
+            #  lcw o rccw / nxtr
+            # prvl/s\ 
             #    /   \ 
             #   /     \
             # at start:
@@ -113,16 +127,47 @@ class TopoMapExporter(object):
             rgt = edge.twin
             if wings:
                 # TODO: signs of wings: + or -
-                print "l", lft.prev.anchor is None
-                print "l", lft.next.anchor is None
-                print "r", rgt.prev.anchor is not None
-                print "r", rgt.next.anchor is not None
-                print ""
+                # - lcw / prev left
+                # - rccw / next right
+                # - lccw / next left
+                # - rcw / prev right
+                lcw, rcw, rccw, lccw = None, None, None, None
+                for he in (edge, edge.twin):
+                    if he.left_face is he.face:
+                        # lccw / next left
+                        lccw = he.next
+                        if lccw.left_face is he.face:
+                            lccw_sign = +1
+                        else:
+                            lccw_sign = -1
+                        # lcw / prev left
+                        lcw = he.prev
+                        if lcw.left_face is he.face:
+                            lcw_sign = +1
+                        else:
+                            lcw_sign = -1
+                    if he.right_face is he.face:
+                        # rccw / next right
+                        rccw = he.next
+                        if rccw.right_face is he.face:
+                            rccw_sign = -1
+                        else:
+                            rccw_sign = +1
+                        # rcw / prev right
+                        rcw = he.prev
+                        if rcw.right_face is he.face:
+                            rcw_sign = -1
+                        else:
+                            rcw_sign = +1
+                assert lcw is not None
+                assert rcw is not None
+                assert lccw is not None
+                assert rccw is not None
                 edge = (lft.id,
                     lft.origin.id, rgt.origin.id, 
                     lft.face.id, rgt.face.id,
-                    lft.prev.id, rgt.next.id, # wings at start
-                    lft.next.id, rgt.prev.id, # wings at end
+                    lcw_sign * lcw.id, rccw_sign * rccw.id, # wings at start
+                    lccw_sign * lccw.id, rcw_sign * rcw.id, # wings at end
                     lft.geometry)
             else:
                 edge = (lft.id,
@@ -132,6 +177,6 @@ class TopoMapExporter(object):
             edges.append(*edge)
         
         # TODO: make use of StringIO / file handler
-#        print dumps(nodes)
-#        print dumps(edges)
-#        print dumps(faces)
+        print dumps(nodes)
+        print dumps(edges)
+        print dumps(faces)

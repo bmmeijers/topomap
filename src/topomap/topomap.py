@@ -1,3 +1,6 @@
+"""TopoMap
+"""
+
 from primitives import Face, Anchorage, Loop, HalfEdge, Node
 from primitives import angle
 
@@ -5,6 +8,9 @@ INIT = False
 VISITED = True
 
 class TopoMap(object):
+    """Class that represents a topology structure based on HalfEdges 
+    (DCEL like).
+    """
     def __init__(self, universe_id = 0, srid = -1):
         self.srid = srid
         self.universe_id = universe_id
@@ -14,7 +20,8 @@ class TopoMap(object):
         self.add_face(universe_id, unbounded = True)
 
     def add_face(self, face_id, attrs = {}, unbounded = False):
-        """Adds a Face to the TopoMap"""
+        """Adds a Face to the TopoMap
+        """
         if face_id not in self.faces:
             face = Face(face_id, attrs, unbounded)
             self.faces[face_id] = face
@@ -137,19 +144,36 @@ class TopoMap(object):
         for face in self.faces.itervalues():
             face.reset_loops()
 
-    def find_loops(self):
-        """Find all Loop objects and adds them to the Face they belong to"""
-        self.label_half_edges(INIT)
-        self._find_loops(self.half_edges.itervalues())
-        for face in self.faces.itervalues():
-            try:
-                face.multigeometry()
-            except:
-                print face
-                raise
+    def label_half_edges(self, value):
+        """Set *value* to all label properties on all HalfEdges
+        """
+        for he in self.half_edges.itervalues():
+            he.label = value
+            he.twin.label = value
 
-    def _find_loops(self, half_edges):
-        for item in half_edges:
+    def clear(self):
+        for edge_id in self.half_edges.keys():
+            self.remove_edge(edge_id, True)
+        for face_id in self.faces.keys():
+            self.remove_face(face_id)
+        self.nodes.clear()
+        self.half_edges.clear()
+        self.faces.clear()
+
+
+class LoopFactory(object):
+    """Class that holds methods to find loops in a TopoMap
+    """
+    
+    def __init__(self):
+        pass
+    
+    @classmethod
+    def find_loops(cls, topomap):
+        """Find all Loop objects for a TopoMap 
+        and adds them to the Face they belong to"""
+        topomap.label_half_edges(INIT)
+        for item in topomap.half_edges.itervalues():
             for he in (item, item.twin):
                 if he.label == VISITED:
                     continue
@@ -176,17 +200,9 @@ class TopoMap(object):
                         if he is start:
                             break
 
-    def label_half_edges(self, value):
-        """Set ``value'' to all label properties on all HalfEdges"""
-        for he in self.half_edges.itervalues():
-            he.label = value
-            he.twin.label = value
-
-    def clear(self):
-        for edge_id in self.half_edges.keys():
-            self.remove_edge(edge_id, True)
-        for face_id in self.faces.keys():
-            self.remove_face(face_id)
-        self.nodes.clear()
-        self.half_edges.clear()
-        self.faces.clear()
+#        for face in topomap.faces.itervalues():
+#            try:
+#                face.multigeometry()
+#            except:
+#                print face
+#                raise

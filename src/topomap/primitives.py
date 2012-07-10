@@ -1,8 +1,11 @@
+import logging
+log = logging.getLogger(__name__)
+
 from math import pi, atan2
 import sys
 
-from brep.util import signed_area, extend_slice
-from brep.geometry import Polygon, LineString, Point
+#from brep.util import signed_area, extend_slice
+from simplegeo.geometry import Polygon, LinearRing
 
 PI2 = 2 * pi
 INIT = False
@@ -25,6 +28,7 @@ def angle(p1, p2):
     return angle
 
 class Face(object):
+    """Face"""
     __slots__ = ('id', 'unbounded', 'attrs', 'loops', 'rings', 'area')
     
     def __init__(self, face_id, attrs, unbounded):
@@ -37,6 +41,8 @@ class Face(object):
         self.area = 0.
 
     def blank(self):
+        """Sets all attributes to None
+        """
         self.loops = None
         self.rings = None
         self.area = None
@@ -49,6 +55,9 @@ class Face(object):
         return self.id == other.id
     
     def reset_loops(self):
+        """Removes loops and rings info from cache
+        """
+        
         self.loops = []
         self.rings = []
         self.area = None
@@ -59,101 +68,12 @@ class Face(object):
         This is a list, because a face can become a multi-part geometry 
         after the clipping operation
         """
-        self.rings = []
-        area = 0.
-        try:
-            assert len(self.loops) > 0
-        except:
-            raise ValueError('Error in face {0} -- no loops for this face'.format(self.id))
-        for loop in self.loops:
-            for ring in loop.geometry:
-                ring_area = signed_area(ring)
-                self.rings.append((ring_area, ring, loop))
-                area += ring_area
-        self.area = area
-
-        # qa on ring sizes 
-        # -> inner have negative area
-        # -> outer have positive area
-        # -> degenerate have no area
-        try:
-            assert len(self.rings) > 0
-        except:
-            print "ERROR: Face", self.id, "has no rings at all"
-            raise Exception("{0} has no rings at all".format(self))
-        #
-        inner = 0
-        outer = 0
-        degenerate = 0
-        for area, ring, loop, in self.rings:
-            if area < 0:
-                inner += 1
-            elif area > 0:
-                outer += 1
-            else:
-                degenerate += 1
-        try:
-#            if self.unbounded: # only holds for strictly planar partition
-#                assert inner >= 1
-#                assert outer == 0
-#                assert degenerate == 0
-#            else:
-            if not self.unbounded:
-                assert inner >= 0
-                assert outer >= 1
-                assert degenerate == 0
-        except AssertionError:
-            print "ERROR: Face", self.id, "has", inner, "inner;", outer, "outer;", degenerate, "degenerate"
-            raise Exception('{0} does not fulfill simple SFS polygon criteria'.format(self) )
-        # make polygon (should conform to SFS specs)
-        if self.unbounded:
-            parts = []
-        else:
-            if len(self.rings) == 1:
-                parts = [Polygon(shell=ring)]
-            elif outer == 1:
-                # find largest ring (this must be outer shell)
-                largest = self.rings[0]
-                j = 0
-                for i, item in enumerate(self.rings[1:], 1):
-                    if item[0] > largest[0]:
-                        largest = item
-                        j = i
-                # outer shell is largest ring found
-                poly = Polygon(shell=self.rings[j][1])
-                # remaining shells are holes
-                for i, item in enumerate(self.rings):
-                    if i == j:
-                        # skip outer shell
-                        continue
-                    poly.append(self.rings[i][1])
-                # return this poly as only part
-                parts = [poly]
-            else:
-                # we have a multi-part geometry as result
-                # therefore we first split inner and outer in different lists
-                inner = []
-                parts = []
-                for area, ring, loop, in self.rings:
-                    if area < 0:
-                        inner.append(ring)
-                    elif area > 0:
-                        parts.append(Polygon(shell = ring))
-                # then we check which inner ring is covered by which 
-                # (there should be exactly one) of the outer rings
-                for iring in inner:
-                    for poly in parts:
-                        if poly.envelope.covers(iring.envelope):
-                            poly.append(iring)
-                            break
-                    # if for loop did not break, we did not find suitable candidate
-                    else: 
-                        raise ValueError('No suitable outer ring found for inner ring {0}'.format(iring))
-#                        print "No suitable outer ring found for inner ring in face", self.id
-        return parts
+        return PolygonizeFactory.face_to_geometry(self)
 
     @property
     def half_edges(self):
+        """HalfEdges having a relation with this face
+        """
         for loop in self.loops:
             for he in loop.half_edges:
                 yield he
@@ -174,6 +94,8 @@ class Face(object):
 
 
 class Anchorage(object):
+    """Container for attributes (dictionary)
+    """
     
     __slots__ = ('id', 'attrs', 'geometry')
     
@@ -184,7 +106,8 @@ class Anchorage(object):
 
 
 class Node(object):
-    
+    """Node class
+    """
     __slots__ = ('id', 'attrs', 'geometry', 'he', 'degree')
     
     def __init__(self, node_id, geometry, attrs = {}):
@@ -195,6 +118,8 @@ class Node(object):
         self.degree = 0
 
     def blank(self):
+        """Sets attributes to None
+        """
         self.he = None
         self.geometry = None
         self.degree = None
@@ -209,6 +134,8 @@ class Node(object):
         return str("N<{0}>".format(self.id))
 
     def add_halfedge(self, he):
+        """Add incident HalfEdge to this Node
+        """
         self.degree += 1
         if self.he is None:
             self.he = he
@@ -254,6 +181,8 @@ class Node(object):
 #            assert increasing( [h.angle for h in self.half_edges] ), "error at N{0}, {1}".format(self.id, [(h.id, h.angle) for h in self.half_edges])
 
     def remove_he(self, he):
+        """Removes incident HalfEdge from this Node
+        """
         assert he.origin is self
         self.degree -= 1
         if self.degree > 0:
@@ -274,7 +203,10 @@ class Node(object):
 
     @property
     def half_edges(self):
-        if self.he is None: return
+        """Iterator over incident HalfEdges
+        """
+        if self.he is None: 
+            return
         yield self.he
         ccw_he = self.he.prev.twin # next he outwards
         while True:
@@ -284,6 +216,8 @@ class Node(object):
             ccw_he = ccw_he.prev.twin
 
 class Loop(object):
+    """Loop class -- A loop is a set of HalfEdges along a Face boundary
+    """
     
     __slots__ = ('start', 'linear_rings')
     
@@ -299,19 +233,27 @@ class Loop(object):
 
     @property
     def face(self):
+        """Face to which this Loop belongs
+        """
         return self.start.face
 
     def blank(self):
+        """Sets attributes to None
+        """
         self.start = None
         self.linear_rings = None
 
     def remove_he(self, he):
+        """Removes HalfEdge from this Loop if *he* is *self.start*
+        """
         if he is self.start:
             self.start = None
         self.linear_rings = None
 
     @property
     def half_edges(self):
+        """Iterator over HalfEdges that are part of this Loop
+        """
         try:
             assert self.start is not None
         except:
@@ -328,10 +270,14 @@ class Loop(object):
                 raise Exception('Too much iteration in loop.half_edges')
     
     def reset_geometry(self):
+        """Empty cache of geometry
+        """
         self.linear_rings = None
     
     @property
     def geometry(self):
+        """Constructs geometry for this Loop
+        """
         # caching of rings, as copying of geometry is quite heavy process
         # (could be optimised -> faster array mechanism under neath geometry?)
         if self.linear_rings is None:
@@ -350,7 +296,7 @@ class Loop(object):
                     tangent_nodes.add(he.origin)
             if tangent_nodes:
                 rings = []
-                ring = LineString()
+                ring = LinearRing()
                 first = True
                 start_node = None
                 end_node = None
@@ -370,7 +316,8 @@ class Loop(object):
                         else:
                             assert step == 1
                             s = slice(1, None, step)
-                    extend_slice(ring, geom, s)
+#                    extend_slice(ring, geom, s)
+                    ring.extend(geom, s)
                     if start_node is None:
                         start_node = he.origin
                     end_node = he.twin.origin
@@ -379,7 +326,7 @@ class Loop(object):
                             stack.append( (ring, start_node) )
                             start_node = None
                             end_node = None
-                            ring = LineString()
+                            ring = LinearRing()
                             first = True
                         else: 
                             rings.append(ring)
@@ -387,7 +334,7 @@ class Loop(object):
                                 ring, start_node = stack.pop()
                                 first = False
                             else:
-                                ring = LineString()
+                                ring = LinearRing()
                                 first = True
                 if len(ring):
                     try:
@@ -398,7 +345,7 @@ class Loop(object):
                     
                 self.linear_rings = rings
             else:
-                ring = LineString()
+                ring = LinearRing()
                 first = True
                 for he in self.half_edges:
                     if he.anchor is not None:
@@ -416,7 +363,8 @@ class Loop(object):
                         else:
                             assert step == 1
                             s = slice(1, None, step)
-                    extend_slice(ring, geom, s)
+#                    extend_slice(ring, geom, s)
+                    ring.extend(geom, s)
                 self.linear_rings = [ring]
                 
 ##            Expensive checks!
@@ -427,6 +375,8 @@ class Loop(object):
         return self.linear_rings
 
 class HalfEdge(object):
+    """HalfEdge class
+    """
     
     __slots__ = ('anchor', 
                  'twin', 
@@ -451,6 +401,8 @@ class HalfEdge(object):
         
     @property
     def id(self):
+        """Global identifier of this HalfEdge
+        """
         if self.anchor is None:
             return self.twin.anchor.id
         else:
@@ -468,10 +420,14 @@ class HalfEdge(object):
                                                   )
 
     def set_twin(self, he):
+        """Sets twin of this HalfEdge
+        """
         self.twin = he
         he.twin = self
     
     def blank(self):
+        """Sets attributes to None
+        """
         self.twin = None
         self.anchor = None
         self.origin = None
@@ -484,6 +440,8 @@ class HalfEdge(object):
     
     @property
     def geometry(self):
+        """Returns copy of geometry
+        """
         if self.anchor:
             return self.anchor.geometry[:]
         else:
@@ -492,6 +450,8 @@ class HalfEdge(object):
 
     @property
     def start_node(self):
+        """Returns Node at start of this HalfEdge
+        """
         if self.anchor:
             return self.origin
         else:
@@ -499,6 +459,8 @@ class HalfEdge(object):
 
     @property
     def end_node(self):
+        """Returns Node at end of this HalfEdge
+        """
         if self.anchor:
             return self.twin.origin
         else:
@@ -506,6 +468,8 @@ class HalfEdge(object):
 
     @property
     def left_face(self):
+        """Returns Face at left of this HalfEdge
+        """
         if self.anchor:
             return self.face
         else:
@@ -513,6 +477,8 @@ class HalfEdge(object):
 
     @property
     def right_face(self):
+        """Returns Face at right of this HalfEdge
+        """
         if self.anchor:
             return self.twin.face
         else:
@@ -520,7 +486,120 @@ class HalfEdge(object):
 
     @property
     def attrs(self):
+        """Returns additional attributes that are stored with this HalfEdge
+        """
         if self.anchor:
             return self.anchor.attrs
         else:
             return self.twin.anchor.attrs
+
+
+class PolygonizeFactory(object):
+    """Methods to convert Face to geometry
+    """
+    def __init__(self):
+        pass
+    
+    @classmethod
+    def face_to_geometry(cls, face):
+        """Returns a list of geometries for this face
+        
+        This is a list, because a face can become a multi-part geometry 
+        after the clipping operation
+        """
+        face.rings = []
+        area = 0.
+        try:
+            assert len(face.loops) > 0
+        except:
+            raise ValueError('Error in face {0} -- no loops for this face'.format(face.id))
+        for loop in face.loops:
+            for ring in loop.geometry:
+                ring_area = ring.signed_area()
+                face.rings.append((ring_area, ring, loop))
+                area += ring_area
+        face.area = area
+
+        # qa on ring sizes 
+        # -> inner have negative area
+        # -> outer have positive area
+        # -> degenerate have no area
+        try:
+            assert len(face.rings) > 0
+        except:
+            print "ERROR: Face", face.id, "has no rings at all"
+            raise Exception("{0} has no rings at all".format(face))
+        #
+        inner = 0
+        outer = 0
+        degenerate = 0
+        for area, ring, loop, in face.rings:
+            if area < 0:
+                inner += 1
+            elif area > 0:
+                outer += 1
+            else:
+                degenerate += 1
+        try:
+#            if face.unbounded: # only holds for strictly planar partition
+#                assert inner >= 1
+#                assert outer == 0
+#                assert degenerate == 0
+#            else:
+            if not face.unbounded:
+                assert inner >= 0
+                assert outer >= 1
+                assert degenerate == 0
+        except AssertionError:
+            print "ERROR: Face", face.id, "has", inner, "inner;", outer, "outer;", degenerate, "degenerate"
+            raise Exception('{0} does not fulfill simple SFS polygon criteria'.format(face) )
+        # make polygon (should conform to SFS specs)
+        if face.unbounded:
+            log.debug('Unbounded face, setting return geometries to empty list')
+            parts = []
+        else:
+            if len(face.rings) == 1:
+                parts = [Polygon(shell=ring)]
+            elif outer == 1:
+                # find largest ring (this must be outer shell)
+                largest = face.rings[0]
+                j = 0
+                for i, item in enumerate(face.rings[1:], 1):
+                    if item[0] > largest[0]:
+                        largest = item
+                        j = i
+                # outer shell is largest ring found
+
+                # remaining shells are holes
+                inner = []
+                for i, item in enumerate(face.rings):
+                    if i == j:
+                        # skip outer shell
+                        continue
+                    inner.append(face.rings[i][1])
+                poly = Polygon(shell=face.rings[j][1], holes = inner)
+                # return this poly as only part
+                parts = [poly]
+            else:
+                # we have a multi-part geometry as result
+                # therefore we first split inner and outer in different lists
+                inner = []
+                parts = []
+                for area, ring, loop, in face.rings:
+                    if area < 0:
+                        inner.append(ring)
+                    elif area > 0:
+                        parts.append(Polygon(shell = ring))
+                # then we check which inner ring is covered by which 
+                # (there should be exactly one) of the outer rings
+                for iring in inner:
+                    for poly in parts:
+                        if poly.envelope.covers(iring.envelope):
+                            poly.append(iring)
+                            break
+                    # if for loop did not break, we did not find suitable candidate
+                    else: 
+                        raise ValueError('No suitable outer ring found for inner ring {0}'.format(iring))
+#                        print "No suitable outer ring found for inner ring in face", face.id
+        return parts
+        

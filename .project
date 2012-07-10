@@ -3,8 +3,8 @@
 	<name>topomap</name>
 	<comment></comment>
 	<projects>
-		<project>brep</project>
 		<project>connection</project>
+		<project>simplegeo</project>
 		<project>sink</project>
 	</projects>
 	<buildSpec>
