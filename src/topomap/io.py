@@ -2,8 +2,8 @@ import logging
 log = logging.getLogger(__name__)
 
 from connection.stateful import recordset, record, irecordset, execute
-from simplegeo.postgis import register
-from simplegeo.wkb import dumps
+from simplegeom.postgis import register
+from simplegeom.wkb import dumps
 
 register()
 
@@ -32,7 +32,7 @@ class TopoMapFactory(object):
         # faces
         sql = """SELECT 
             face_id::int,
-            -1 -- feature_class::int 
+            feature_class::int 
         FROM
             {0}_face
             """.format(name)
@@ -84,15 +84,23 @@ class TopoMapFactory(object):
         # faces
         sql = """SELECT 
             face_id::int,
-            -1 -- feature_class::int 
+            --feature_class::int
+            0 
         FROM
             {0}_face
         WHERE
-            mbr_geometry && {1}
+            mbr_geometry && '{1}'::geometry
             """.format(name, dumps(bbox)) # as_hexewkb(bbox, srid))
         for face_id, feature_class, in irecordset(sql):
             topo_map.add_face(face_id, 
                               attrs = {'feature_class': feature_class,})
+#                              attrs = {'imp_low': 0.0,
+#                                            'imp_high': 0.0,
+#                                            'imp_own': 0.0,
+#                                            'min_step': 0,
+#                                            'max_step': 0,
+#                                            'feature_class': feature_class,
+#                                            }
         
         #edges
         sql = """SELECT 
@@ -103,7 +111,7 @@ class TopoMapFactory(object):
         FROM 
             {0}_edge
         WHERE
-            mbr_geometry && '{1}'
+            geometry && '{1}'
         """.format(name, bbox)
         for edge_id, \
             start_node_id, end_node_id, \
@@ -118,7 +126,7 @@ class TopoMapFactory(object):
                               #         'lf_lo': left_face_id, 
                               #         'rf_lo': right_face_id,}
                               )
-        topo_map.find_loops()
+#        LoopFactory.find_loops()
         return topo_map
 
     @classmethod
@@ -338,10 +346,10 @@ class PolygonFactory():
 #            log.debug("edge: {0} {1}".format(edge_id, geometry))
         LoopFactory.find_loops(topo_map)
         current_face = topo_map.faces[face_id]
-#        for he in topo_map.half_edges.itervalues():
-#            if he.face is current_face:
+#        for edge in topo_map.half_edges.itervalues():
+#            if edge.face is current_face:
 #                print "...",  
-#                print he, he.anchor is None, he.next.id, he.prev.id
+#                print edge, edge.anchor is None, edge.next.id, edge.prev.id
         logging.info(current_face)
         for loop in current_face.loops:
 #            print loop
@@ -356,62 +364,62 @@ class PolygonFactory():
             sqll = 'INSERT INTO {0}_edge_left (edge_id, next, prev) VALUES (%s, %s, %s)'
             sqlr = 'INSERT INTO {0}_edge_right (edge_id, next, prev) VALUES (%s, %s, %s)'
             # TODO: next/prev and ccw/cw are mixed up here
-            for he in loop.half_edges:
-                if he.left_face is he.face:
+            for edge in loop.half_edges:
+                if edge.left_face is edge.face:
                     # lccw / next left
-                    lccw = he.next
-                    if lccw.left_face is he.face:
+                    lccw = edge.next
+                    if lccw.left_face is edge.face:
                         lccw_sign = +1
                     else:
                         lccw_sign = -1
                     # lcw / prev left
-                    lcw = he.prev
-                    if lcw.left_face is he.face:
+                    lcw = edge.prev
+                    if lcw.left_face is edge.face:
                         lcw_sign = +1
                     else:
                         lcw_sign = -1
-                    execute(sqll.format(name), parameters = ( he.id, lcw_sign * lcw.id, lccw_sign * lccw.id,))
-                if he.right_face is he.face:
+                    execute(sqll.format(name), parameters = ( edge.id, lcw_sign * lcw.id, lccw_sign * lccw.id,))
+                if edge.right_face is edge.face:
                     # rccw / next right
-                    rccw = he.next
-                    if rccw.right_face is he.face:
+                    rccw = edge.next
+                    if rccw.right_face is edge.face:
                         rccw_sign = -1
                     else:
                         rccw_sign = +1
                     # rcw / prev right
-                    rcw = he.prev
-                    if rcw.right_face is he.face:
+                    rcw = edge.prev
+                    if rcw.right_face is edge.face:
                         rcw_sign = -1
                     else:
                         rcw_sign = +1
-                    execute(sqlr.format(name), parameters = (he.id, rcw_sign * rcw.id, rccw_sign * rccw.id,))
+                    execute(sqlr.format(name), parameters = (edge.id, rcw_sign * rcw.id, rccw_sign * rccw.id,))
 
 ##                print ""
-##                print "e", he.id
-#                if he.left_face is current_face:
+##                print "e", edge.id
+#                if edge.left_face is current_face:
 #                    # next left / lcw
-#                    lcw = he.next
-#                    if he.next.left_face is current_face:
+#                    lcw = edge.next
+#                    if edge.next.left_face is current_face:
 #                        lcw_sign = +1
 #                    else:
 #                        lcw_sign = -1
 #                    # prev left / lccw
-#                    lccw = he.prev
-#                    if he.prev.left_face is current_face:
+#                    lccw = edge.prev
+#                    if edge.prev.left_face is current_face:
 #                        lccw_sign = +1
 #                    else:
 #                        lccw_sign = -1
 
-#                if he.right_face is current_face:
+#                if edge.right_face is current_face:
 #                    # prev right / rccw
-#                    rccw = he.prev
-#                    if he.prev.right_face is current_face:
+#                    rccw = edge.prev
+#                    if edge.prev.right_face is current_face:
 #                        rccw_sign = -1
 #                    else:
 #                        rccw_sign = +1
 #                    # next right / rcw
-#                    rcw = he.next
-#                    if he.next.right_face is current_face:
+#                    rcw = edge.next
+#                    if edge.next.right_face is current_face:
 #                        rcw_sign = +1
 #                    else:
 #                        rcw_sign = -1

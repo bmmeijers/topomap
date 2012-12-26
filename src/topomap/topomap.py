@@ -59,7 +59,7 @@ class TopoMap(object):
             he0 = HalfEdge(attribute)
             he1 = HalfEdge(None) 
             # store id and geometry in left part
-            # link he - he
+            # link edge - edge
             he0.set_twin(he1)
             #
             assert geometry[0] != geometry[1], "{0} {1}; {2} ".format(geometry[0], geometry[1], geometry, edge_id)
@@ -80,8 +80,10 @@ class TopoMap(object):
             end_node = self.add_node(end_node_id, geometry[-1])
             he1.origin = end_node
             end_node.add_halfedge(he1)
-            assert geometry[0] == start_node.geometry, "e{2} {0} vs. {1} :: {3} {4} @ {5} (startnode)".format(geometry[0], start_node.geometry, edge_id, geometry, he0, start_node.id)
-            assert geometry[-1] == end_node.geometry, "e{2} {0} vs. {1} @ {4} (endnode) :: {3}".format(geometry[-1], end_node.geometry, edge_id, geometry, end_node.id)
+            assert geometry[0] == start_node.geometry, \
+                "e{2} {0} vs. {1} :: {3} {4} @ {5} (startnode)".format(geometry[0], start_node.geometry, edge_id, geometry, he0, start_node.id)
+            assert geometry[-1] == end_node.geometry, \
+                "e{2} {0} vs. {1} @ {4} (endnode) :: {3}".format(geometry[-1], end_node.geometry, edge_id, geometry, end_node.id)
             # add is_edge to dictionary of edges
             self.half_edges[edge_id] = he0
         else:
@@ -97,8 +99,10 @@ class TopoMap(object):
         he0 = self.half_edges[edge_id]
         he1 = he0.twin
         # set pointers to this HalfEdge to zero, if they exist
-        he0.loop.remove_he(he0)
-        he1.loop.remove_he(he1)
+        if he0.loop:
+            he0.loop.remove_he(he0)
+        if he1.loop:
+            he1.loop.remove_he(he1)
 
         start_node = he0.origin
         end_node = he1.origin
@@ -144,12 +148,14 @@ class TopoMap(object):
         for face in self.faces.itervalues():
             face.reset_loops()
 
-    def label_half_edges(self, value):
+    def label_half_edges(self, value, half_edges = None):
         """Set *value* to all label properties on all HalfEdges
         """
-        for he in self.half_edges.itervalues():
-            he.label = value
-            he.twin.label = value
+        if not half_edges:
+            half_edges = self.half_edges.itervalues()
+        for edge in half_edges:
+            edge.label = value
+            edge.twin.label = value
 
     def clear(self):
         for edge_id in self.half_edges.keys():
@@ -169,16 +175,18 @@ class LoopFactory(object):
         pass
     
     @classmethod
-    def find_loops(cls, topomap):
+    def find_loops(cls, topomap, half_edges = None):
         """Find all Loop objects for a TopoMap 
         and adds them to the Face they belong to"""
-        topomap.label_half_edges(INIT)
-        for item in topomap.half_edges.itervalues():
-            for he in (item, item.twin):
-                if he.label == VISITED:
+        if not half_edges:
+            topomap.label_half_edges(INIT)
+            half_edges = topomap.half_edges.itervalues()
+        for item in half_edges:
+            for edge in (item, item.twin):
+                if edge.label == VISITED:
                     continue
                 else:
-                    start = he
+                    start = edge
                     loop = Loop(start)
                     start.face.loops.append(loop)
                     guard = 0
@@ -186,18 +194,18 @@ class LoopFactory(object):
                         guard += 1
                         if guard > 500000:
                             raise Exception('Too much iteration for {0}, started at {1}'.format(start.face, start))
-                        he.label = VISITED
-                        he.loop = loop
+                        edge.label = VISITED
+                        edge.loop = loop
                         try:
-                            assert he.face is start.face, "{0}, reconstructing: {1}".format(he, start.face)
+                            assert edge.face is start.face, "{0}, reconstructing: {1}".format(edge, start.face)
                         except:
-                            print "ERROR: {0}".format(he)
+                            print "ERROR: {0}".format(edge)
                             print "... reconstructing: {0}".format(start.face)
-                            print "...", he, he.face, start.face
+                            print "...", edge, edge.face, start.face
                             print ""
                             raise
-                        he = he.next
-                        if he is start:
+                        edge = edge.next
+                        if edge is start:
                             break
 
 #        for face in topomap.faces.itervalues():

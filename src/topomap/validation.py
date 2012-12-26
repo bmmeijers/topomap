@@ -18,9 +18,9 @@ class TopoMapValidator(object):
         self.validate_face_geometries()
 
     def validate_angles(self):
-        for he in self.topo_map.half_edges.itervalues():
-            assert increasing( [h.angle for h in he.origin.half_edges] ), "n{0}: {1}".format(he.origin.id, [(h.id, h.angle) for h in he.origin.half_edges])
-#            assert increasing( [h.angle for h in he.twin.origin.half_edges] ), "n{0}: {1}".format(he.twin.origin.id, [(h.id, h.angle) for h in he.twin.origin.half_edges])
+        for edge in self.topo_map.half_edges.itervalues():
+            assert increasing( [h.angle for h in edge.origin.half_edges] ), "n{0}: {1}".format(edge.origin.id, [(h.id, h.angle) for h in edge.origin.half_edges])
+#            assert increasing( [h.angle for h in edge.twin.origin.half_edges] ), "n{0}: {1}".format(edge.twin.origin.id, [(h.id, h.angle) for h in edge.twin.origin.half_edges])
         
     def validate_faces(self):
         for face in self.topo_map.faces.itervalues():
@@ -34,18 +34,18 @@ class TopoMapValidator(object):
             face.multigeometry()
 
     def validate_loops(self):
-        for he in self.topo_map.half_edges.itervalues():
+        for edge in self.topo_map.half_edges.itervalues():
             try:
-                assert he.face is he.loop.face
-                assert he.loop in he.face.loops
+                assert edge.face is edge.loop.face
+                assert edge.loop in edge.face.loops
             except:
-                if he.face is None or he.loop is None:
-                    raise Exception("he.loop {0}, he {1}".format( he.loop, he))
+                if edge.face is None or edge.loop is None:
+                    raise Exception("edge.loop {0}, edge {1}".format( edge.loop, edge))
                 else:
                     face = None
-                    if he.loop.start is not None:
-                        face = he.loop.face
-                    raise Exception('{0} expected {1}, found {2}'.format(he.id, he.face, face))
+                    if edge.loop.start is not None:
+                        face = edge.loop.face
+                    raise Exception('{0} expected {1}, found {2}'.format(edge.id, edge.face, face))
         
         for face in self.topo_map.faces.itervalues():
             try:
@@ -61,12 +61,12 @@ class TopoMapValidator(object):
 
     def validate_nodes(self):
         for node in self.topo_map.nodes.itervalues():
-            for he in node.half_edges:
-                assert he.origin is node
+            for edge in node.half_edges:
+                assert edge.origin is node
 
     def validate_edges_around_node(self):
         for node in self.topo_map.nodes.itervalues():
-            for he in node.half_edges:
-                assert he.origin is node
-                assert he.prev.twin.origin is node
-                assert he.next.origin is he.twin.origin
+            for edge in node.half_edges:
+                assert edge.origin is node
+                assert edge.prev.twin.origin is node
+                assert edge.next.origin is edge.twin.origin

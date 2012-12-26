@@ -1,5 +1,5 @@
-from sink import use
-use('oracle')
+#from sink import use
+#use('oracle')
 from sink import Field, Schema, Index, Layer, dumps
 
 import warnings
@@ -9,7 +9,7 @@ class TopoMapExporter(object):
         pass
 
     @classmethod
-    def export(cls, topo_map, name, wings = False):
+    def export(cls, topo_map, name, stream, wings = False):
         if wings:
             warnings.warn("Wings have not been fully tested")
         # Make schema
@@ -132,30 +132,30 @@ class TopoMapExporter(object):
                 # - lccw / next left
                 # - rcw / prev right
                 lcw, rcw, rccw, lccw = None, None, None, None
-                for he in (edge, edge.twin):
-                    if he.left_face is he.face:
+                for edge in (edge, edge.twin):
+                    if edge.left_face is edge.face:
                         # lccw / next left
-                        lccw = he.next
-                        if lccw.left_face is he.face:
+                        lccw = edge.next
+                        if lccw.left_face is edge.face:
                             lccw_sign = +1
                         else:
                             lccw_sign = -1
                         # lcw / prev left
-                        lcw = he.prev
-                        if lcw.left_face is he.face:
+                        lcw = edge.prev
+                        if lcw.left_face is edge.face:
                             lcw_sign = +1
                         else:
                             lcw_sign = -1
-                    if he.right_face is he.face:
+                    if edge.right_face is edge.face:
                         # rccw / next right
-                        rccw = he.next
-                        if rccw.right_face is he.face:
+                        rccw = edge.next
+                        if rccw.right_face is edge.face:
                             rccw_sign = -1
                         else:
                             rccw_sign = +1
                         # rcw / prev right
-                        rcw = he.prev
-                        if rcw.right_face is he.face:
+                        rcw = edge.prev
+                        if rcw.right_face is edge.face:
                             rcw_sign = -1
                         else:
                             rcw_sign = +1
@@ -177,6 +177,6 @@ class TopoMapExporter(object):
             edges.append(*edge)
         
         # TODO: make use of StringIO / file handler
-        print dumps(nodes)
-        print dumps(edges)
-        print dumps(faces)
+        print >> stream, dumps(nodes)
+        print >> stream, dumps(edges)
+        print >> stream, dumps(faces)

@@ -4,8 +4,7 @@ log = logging.getLogger(__name__)
 from math import pi, atan2
 import sys
 
-#from brep.util import signed_area, extend_slice
-from simplegeo.geometry import Polygon, LinearRing
+from simplegeom.geometry import Polygon, LinearRing
 
 PI2 = 2 * pi
 INIT = False
@@ -75,21 +74,21 @@ class Face(object):
         """HalfEdges having a relation with this face
         """
         for loop in self.loops:
-            for he in loop.half_edges:
-                yield he
+            for edge in loop.half_edges:
+                yield edge
 
     @property
     def neighbours(self):
         """Returns dictionary with:
-        neighbouring face -> set of he 
-        (boundary between, this he lies on interior of *this* face)
+        neighbouring face -> set of edge 
+        (boundary between, this edge lies on interior of *this* face)
         """
         neighbours = {}
         for loop in self.loops:
-            for he in loop.half_edges:
-                if he.twin.face not in neighbours:
-                    neighbours[he.twin.face] = set()
-                neighbours[he.twin.face].add(he)
+            for edge in loop.half_edges:
+                if edge.twin.face not in neighbours:
+                    neighbours[edge.twin.face] = set()
+                neighbours[edge.twin.face].add(edge)
         return neighbours
 
 
@@ -133,29 +132,29 @@ class Node(object):
     def __str__(self):
         return str("N<{0}>".format(self.id))
 
-    def add_halfedge(self, he):
+    def add_halfedge(self, edge):
         """Add incident HalfEdge to this Node
         """
         self.degree += 1
         if self.he is None:
-            self.he = he
+            self.he = edge
             self.he.twin.next = self.he
             self.he.prev = self.he.twin
         else:
 #            print " already edges at node"
-#            print "angle", degrees(he.angle), "({0})".format(he.angle)
-#            print "first", self.he.id, id(self.he), degrees(self.he.angle), self.he
+#            print "angle", degrees(edge.angle), "({0})".format(edge.angle)
+#            print "first", self.edge.id, id(self.edge), degrees(self.edge.angle), self.edge
             assert self.he.origin is self
             cw_he = self.he
-            ccw_he = cw_he.prev.twin # next he outwards
+            ccw_he = cw_he.prev.twin # next edge outwards
             while True:
 #                print "tick, cw:", cw_he.id, id(cw_he), degrees(cw_he.angle), "({0})".format(cw_he.angle), "_ ccw:", ccw_he.id, id(ccw_he), degrees(ccw_he.angle), "({0})".format(ccw_he.angle)
-                assert he.angle != None
-                assert he.angle != cw_he
-                assert he.angle != ccw_he
+                assert edge.angle != None
+                assert edge.angle != cw_he
+                assert edge.angle != ccw_he
                 if ccw_he is self.he:
                     break
-                if he.angle > cw_he.angle and he.angle < ccw_he.angle:
+                if edge.angle > cw_he.angle and edge.angle < ccw_he.angle:
                     break
                 cw_he = ccw_he
                 ccw_he = cw_he.prev.twin 
@@ -164,35 +163,35 @@ class Node(object):
                 assert cw_he.origin is self
                 assert ccw_he.origin is self
             except:
-                for he in self.half_edges:
-                    print >> sys.stderr, self, "->", he
+                for edge in self.half_edges:
+                    print >> sys.stderr, self, "->", edge
                 raise
             assert cw_he is not None
             assert ccw_he is not None
-            # adapt ccw_he, cw_he and he
-            ccw_he.twin.next = he
-            he.prev = ccw_he.twin
-            he.twin.next = cw_he
-            cw_he.prev = he.twin
+            # adapt ccw_he, cw_he and edge
+            ccw_he.twin.next = edge
+            edge.prev = ccw_he.twin
+            edge.twin.next = cw_he
+            cw_he.prev = edge.twin
             # make this HalfEdge the HalfEdge associated with this node 
             # if angle is closer to 0 than before
-            if he.angle < self.he.angle:
-                self.he = he
+            if edge.angle < self.he.angle:
+                self.he = edge
 #            assert increasing( [h.angle for h in self.half_edges] ), "error at N{0}, {1}".format(self.id, [(h.id, h.angle) for h in self.half_edges])
 
-    def remove_he(self, he):
+    def remove_he(self, edge):
         """Removes incident HalfEdge from this Node
         """
-        assert he.origin is self
+        assert edge.origin is self
         self.degree -= 1
         if self.degree > 0:
-            cw_he = he.twin.next #.prev
+            cw_he = edge.twin.next #.prev
             assert cw_he.origin is self
-            ccw_he = he.prev #.next
+            ccw_he = edge.prev #.next
             assert ccw_he.twin.origin is self
             cw_he.prev = ccw_he
             ccw_he.next = cw_he
-            if he is self.he:
+            if edge is self.he:
 #                raise ValueError('removing associated is_edge')
                 assert ccw_he.twin.origin is self
                 self.he = ccw_he.twin
@@ -208,7 +207,7 @@ class Node(object):
         if self.he is None: 
             return
         yield self.he
-        ccw_he = self.he.prev.twin # next he outwards
+        ccw_he = self.he.prev.twin # next edge outwards
         while True:
             if ccw_he is self.he:
                 break
@@ -221,8 +220,8 @@ class Loop(object):
     
     __slots__ = ('start', 'linear_rings')
     
-    def __init__(self, he):
-        self.start = he
+    def __init__(self, edge):
+        self.start = edge
         self.linear_rings = None
     
     def __str__(self):
@@ -243,10 +242,10 @@ class Loop(object):
         self.start = None
         self.linear_rings = None
 
-    def remove_he(self, he):
-        """Removes HalfEdge from this Loop if *he* is *self.start*
+    def remove_he(self, edge):
+        """Removes HalfEdge from this Loop if *edge* is *self.start*
         """
-        if he is self.start:
+        if edge is self.start:
             self.start = None
         self.linear_rings = None
 
@@ -258,13 +257,13 @@ class Loop(object):
             assert self.start is not None
         except:
             raise Exception("ERROR in {0} -- Orphaned loop found: no associated half is_edge".format(self))
-        he = self.start
+        edge = self.start
         guard = 0
         while True:
-            yield he
+            yield edge
             guard += 1
-            he = he.next
-            if he is self.start:
+            edge = edge.next
+            if edge is self.start:
                 break
             if guard > 500000:
                 raise Exception('Too much iteration in loop.half_edges')
@@ -289,23 +288,23 @@ class Loop(object):
             nodes = set() 
             tangent_nodes = set()
             stack = []
-            for he in self.half_edges:
-                if he.origin not in nodes:
-                    nodes.add(he.origin)
+            for edge in self.half_edges:
+                if edge.origin not in nodes:
+                    nodes.add(edge.origin)
                 else:
-                    tangent_nodes.add(he.origin)
+                    tangent_nodes.add(edge.origin)
             if tangent_nodes:
                 rings = []
                 ring = LinearRing()
                 first = True
                 start_node = None
                 end_node = None
-                for he in self.half_edges:
-                    if he.anchor is not None:
-                        geom = he.anchor.geometry
+                for edge in self.half_edges:
+                    if edge.anchor is not None:
+                        geom = edge.anchor.geometry
                         step = 1
                     else:
-                        geom = he.twin.anchor.geometry
+                        geom = edge.twin.anchor.geometry
                         step = -1
                     if first:
                         s = slice(None, None, step)
@@ -319,9 +318,9 @@ class Loop(object):
 #                    extend_slice(ring, geom, s)
                     ring.extend(geom, s)
                     if start_node is None:
-                        start_node = he.origin
-                    end_node = he.twin.origin
-                    if he.twin.origin in tangent_nodes:
+                        start_node = edge.origin
+                    end_node = edge.twin.origin
+                    if edge.twin.origin in tangent_nodes:
                         if start_node is not end_node:
                             stack.append( (ring, start_node) )
                             start_node = None
@@ -347,12 +346,12 @@ class Loop(object):
             else:
                 ring = LinearRing()
                 first = True
-                for he in self.half_edges:
-                    if he.anchor is not None:
-                        geom = he.anchor.geometry
+                for edge in self.half_edges:
+                    if edge.anchor is not None:
+                        geom = edge.anchor.geometry
                         step = 1
                     else:
-                        geom = he.twin.anchor.geometry
+                        geom = edge.twin.anchor.geometry
                         step = -1
                     if first:
                         s = slice(None, None, step)
@@ -419,11 +418,11 @@ class HalfEdge(object):
                                                   next_id, prev_id
                                                   )
 
-    def set_twin(self, he):
+    def set_twin(self, edge):
         """Sets twin of this HalfEdge
         """
-        self.twin = he
-        he.twin = self
+        self.twin = edge
+        edge.twin = self
     
     def blank(self):
         """Sets attributes to None
@@ -445,8 +444,7 @@ class HalfEdge(object):
         if self.anchor:
             return self.anchor.geometry[:]
         else:
-            geom = self.twin.anchor.geometry[:]
-            return geom
+            return self.twin.anchor.geometry[:]
 
     @property
     def start_node(self):
