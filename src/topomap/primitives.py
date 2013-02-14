@@ -510,7 +510,8 @@ class PolygonizeFactory(object):
         try:
             assert len(face.loops) > 0
         except:
-            raise ValueError('Error in face {0} -- no loops for this face'.format(face.id))
+            log.warning('Error in face {0} -- no loops for this face'.format(face.id))
+            return []
         for loop in face.loops:
             for ring in loop.geometry:
                 ring_area = ring.signed_area()
@@ -525,8 +526,8 @@ class PolygonizeFactory(object):
         try:
             assert len(face.rings) > 0
         except:
-            print "ERROR: Face", face.id, "has no rings at all"
-            raise Exception("{0} has no rings at all".format(face))
+            log.warning("{0} has no rings at all".format(face))
+            return []
         #
         inner = 0
         outer = 0
@@ -549,55 +550,59 @@ class PolygonizeFactory(object):
                 assert outer >= 1
                 assert degenerate == 0
         except AssertionError:
-            print "ERROR: Face", face.id, "has", inner, "inner;", outer, "outer;", degenerate, "degenerate"
-            raise Exception('{0} does not fulfill simple SFS polygon criteria'.format(face) )
+            log.warning("ERROR: Face {} has {} inner; {} outer; {} degenerate".format(face.id,
+                inner, outer, degenerate))
+#            for area, ring, loop, in face.rings:
+#                print ring
+            return []
+#            raise Exception('{0} does not fulfill simple SFS polygon criteria'.format(face) )
         # make polygon (should conform to SFS specs)
-        if face.unbounded:
-            log.debug('Unbounded face, setting return geometries to empty list')
-            parts = []
-        else:
-            if len(face.rings) == 1:
-                parts = [Polygon(shell=ring)]
-            elif outer == 1:
-                # find largest ring (this must be outer shell)
-                largest = face.rings[0]
-                j = 0
-                for i, item in enumerate(face.rings[1:], 1):
-                    if item[0] > largest[0]:
-                        largest = item
-                        j = i
-                # outer shell is largest ring found
+#        if face.unbounded:
+#            log.debug('Unbounded face, setting return geometries to empty list')
+#            parts = []
+#        else:
+        if len(face.rings) == 1:
+            parts = [Polygon(shell=ring)]
+        elif outer == 1:
+            # find largest ring (this must be outer shell)
+            largest = face.rings[0]
+            j = 0
+            for i, item in enumerate(face.rings[1:], 1):
+                if item[0] > largest[0]:
+                    largest = item
+                    j = i
+            # outer shell is largest ring found
 
-                # remaining shells are holes
-                inner = []
-                for i, item in enumerate(face.rings):
-                    if i == j:
-                        # skip outer shell
-                        continue
-                    inner.append(face.rings[i][1])
-                poly = Polygon(shell=face.rings[j][1], holes = inner)
-                # return this poly as only part
-                parts = [poly]
-            else:
-                # we have a multi-part geometry as result
-                # therefore we first split inner and outer in different lists
-                inner = []
-                parts = []
-                for area, ring, loop, in face.rings:
-                    if area < 0:
-                        inner.append(ring)
-                    elif area > 0:
-                        parts.append(Polygon(shell = ring))
-                # then we check which inner ring is covered by which 
-                # (there should be exactly one) of the outer rings
-                for iring in inner:
-                    for poly in parts:
-                        if poly.envelope.covers(iring.envelope):
-                            poly.append(iring)
-                            break
-                    # if for loop did not break, we did not find suitable candidate
-                    else: 
-                        raise ValueError('No suitable outer ring found for inner ring {0}'.format(iring))
+            # remaining shells are holes
+            inner = []
+            for i, item in enumerate(face.rings):
+                if i == j:
+                    # skip outer shell
+                    continue
+                inner.append(face.rings[i][1])
+            poly = Polygon(shell=face.rings[j][1], holes = inner)
+            # return this poly as only part
+            parts = [poly]
+        else:
+            # we have a multi-part geometry as result
+            # therefore we first split inner and outer in different lists
+            inner = []
+            parts = []
+            for area, ring, loop, in face.rings:
+                if area < 0:
+                    inner.append(ring)
+                elif area > 0:
+                    parts.append(Polygon(shell = ring))
+            # then we check which inner ring is covered by which 
+            # (there should be exactly one) of the outer rings
+            for iring in inner:
+                for poly in parts:
+                    if poly.envelope.covers(iring.envelope):
+                        poly.append(iring)
+                        break
+                # if for loop did not break, we did not find suitable candidate
+                else: 
+                    raise ValueError('No suitable outer ring found for inner ring {0}'.format(iring))
 #                        print "No suitable outer ring found for inner ring in face", face.id
         return parts
         
