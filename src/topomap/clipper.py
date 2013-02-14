@@ -16,79 +16,6 @@ class EdgeClipper(object):
         self.border_face_id = border_face_id
         self.original_edges = []
     
-    def clip_segment(self, x1, y1, x2, y2):
-        coords = None
-        left, bottom, right, top = self.bbox.xmin, self.bbox.ymin, \
-                                    self.bbox.xmax, self.bbox.ymax
-        # the Segment can be parameterized as
-        #
-        # x = u * (x2 - x1) + x1
-        # y = u * (y2 - y1) + y1
-        #
-        # for u = 0, x => x1, y => y1
-        # for u = 1, x => x2, y => y2
-        #
-        # The following is the Liang-Barsky Algorithm
-        # for segment clipping
-        x1, y1, x2, y2 = map(float, [x1, y1, x2, y2])
-        dx = x2 - x1
-        dy = y2 - y1
-        P = [-dx, dx, -dy, dy]
-        q = [(x1 - left), (right - x1), (y1 - bottom), (top - y1)]
-        u1 = 0.0
-        u2 = 1.0
-        # valid means inside OR partially inside, i.e. clipped
-        valid = True 
-        for i in xrange(4): 
-            # 0 left, 1 right, 2 bottom, 3 top
-            pi = P[i]
-            qi = q[i]
-            if abs(pi) == 0.: 
-                # -> parallel line
-                # was "< 1e-10" pi smaller than tolerance
-                if qi < 0.0:
-                    valid = False
-                    break
-            else:
-                r = qi / pi
-                if pi < 0.0: 
-                    if r > u2:
-                        valid = False
-                        break
-                    # update u1
-                    if r > u1: 
-                        u1 = r
-                else:
-                    if r < u1:
-                        valid = False
-                        break
-                    # update u2
-                    if r < u2: 
-                        u2 = r
-        # end for
-        if valid:
-            if u2 < 1:
-                x2 = x1 + u2 * dx
-                y2 = y1 + u2 * dy
-            else:
-                assert u2 == 1.
-            if u1 > 0: 
-                x1 += u1 * dx
-                y1 += u1 * dy
-            else:
-                assert u1 == 0.
-            coords = [(x1, y1), (x2, y2)]
-            
-        # TODO:
-        # return or set type of clip
-    
-        # e.g.
-        # 0 = no segment returning
-        # 1 = start changed
-        # 2 = end changed
-        # 4 = collapsed into point
-        return coords
-    
     def clip_edge(self, edge_id,
                        start_node_id, end_node_id,
                        left_face_id, right_face_id,
@@ -103,6 +30,8 @@ class EdgeClipper(object):
         #if clip_window.intersects(geometry.envelope) and \
         #    not clip_window.contains(geometry.envelope):
         # """
+        self.original_edges.append(geometry)
+        
         left, bottom, right, top = self.bbox.xmin, self.bbox.ymin, \
                                  self.bbox.xmax, self.bbox.ymax
         segment_ct = len(geometry) - 1
@@ -143,7 +72,7 @@ class EdgeClipper(object):
                     node = Point(x2, y2)
                     self._add_vertex(node)
                 # segment is inside, 
-                # but can still have one or even both points
+                # but can still have one or two points
                 # on the border of clipping window
                 else:
                     pt = Point(x1, y1)
@@ -154,11 +83,13 @@ class EdgeClipper(object):
                         end_node = Point(x2, y2)
                         clipped_geometry.append( end_node )
                     # start of segment is on border of clipping window
-                    if (x1 == left or x1 == right) or (y1 == top or y1 == bottom):
+                    if (x1 == left or x1 == right) or \
+                        (y1 == top or y1 == bottom):
                         start_node = Point(x1, y1)
                         new_sn_id = self._add_vertex(start_node)
                     # end of segment is on border of clipping window
-                    if (x2 == left or x2 == right) or (y2 == top or y2 == bottom):
+                    if (x2 == left or x2 == right) or \
+                        (y2 == top or y2 == bottom):
                         end_node = Point(x2, y2)
                         new_en_id = self._add_vertex(end_node)
                         # we only add the point if there will be more parts
@@ -168,8 +99,11 @@ class EdgeClipper(object):
             # nor fully outside                    
             # -> clip
             else:
-                clipped_segment = self.clip_segment(x1, y1, x2, y2)
-                assert clipped_segment is not None
+                clipped_segment = self._clip_segment(x1, y1, x2, y2)
+                if clipped_segment is None:
+                    # segment is fully outside clipping window
+                    # but bbox of segment overlaps clipping window
+                    continue
                 # collapsed to one point, rejecting -- but adding to border
                 if clipped_segment[0] == clipped_segment[1]:
                     node = Point(clipped_segment[0][0], 
@@ -222,7 +156,7 @@ class EdgeClipper(object):
                         clipped_geometry, 
                         attrs)
                 self.clipped.append(new_edge)
-                # reset for eventually a next part that is inside
+                # reset for a next part that eventually is inside
                 clipped_geometry = LineString(srid = geometry.srid)
                 start_node = None
                 end_node = None
@@ -241,7 +175,75 @@ class EdgeClipper(object):
         else:
             vid = self.vertex_ids[vertex]
         return vid
-    
+
+    def _clip_segment(self, x1, y1, x2, y2):
+        """Clips a segment
+        
+        The Liang-Barsky Algorithm is used for clipping
+        """
+        coords = None
+        left, bottom, right, top = self.bbox.xmin, self.bbox.ymin, \
+                                    self.bbox.xmax, self.bbox.ymax
+        # the Segment can be parameterized as
+        #
+        # x = u * (x2 - x1) + x1
+        # y = u * (y2 - y1) + y1
+        #
+        # for u = 0, x => x1, y => y1
+        # for u = 1, x => x2, y => y2
+        #
+        # The following is the Liang-Barsky Algorithm
+        # for segment clipping
+        x1, y1, x2, y2 = map(float, [x1, y1, x2, y2])
+        dx = x2 - x1
+        dy = y2 - y1
+        P = [-dx, dx, -dy, dy]
+        q = [(x1 - left), (right - x1), (y1 - bottom), (top - y1)]
+        u1 = 0.0
+        u2 = 1.0
+        # valid means inside OR partially inside, i.e. clipped
+        valid = True 
+        for i in xrange(4): 
+            # 0 left, 1 right, 2 bottom, 3 top
+            pi = P[i]
+            qi = q[i]
+            if pi == 0.: 
+                # -> parallel line
+                # was "< 1e-10" pi smaller than tolerance
+                if qi < 0.0:
+                    valid = False
+                    break
+            else:
+                r = qi / pi
+                if pi < 0.0: 
+                    if r > u2:
+                        valid = False
+                        break
+                    # update u1
+                    if r > u1: 
+                        u1 = r
+                else:
+                    if r < u1:
+                        valid = False
+                        break
+                    # update u2
+                    if r < u2: 
+                        u2 = r
+        # end for
+        if valid:
+            if u2 < 1:
+                x2 = x1 + u2 * dx
+                y2 = y1 + u2 * dy
+            else:
+                assert u2 == 1.
+            if u1 > 0: 
+                x1 += u1 * dx
+                y1 += u1 * dy
+            else:
+                assert u1 == 0.
+            coords = [(x1, y1), (x2, y2)]
+        return coords
+
     @property
     def border_segments(self):
         """After clipping all edges, this property gives all
@@ -263,7 +265,7 @@ class EdgeClipper(object):
                     self.border_face_id,
                     self.border_face_id,
                     LineString( (clipped_coords[i], clipped_coords[i + 1])),
-                    {'locked': True, 'border': True}
+                    {'locked': True, 'border': True, 'clipped': True}
                     )
             segments.append(border_edge)
         return segments
@@ -391,6 +393,53 @@ def test():
     
     plt.axis([-1, 11, -1, 11])
     plt.show()
+
+def plot(ec):
+    import matplotlib.pyplot as plt
+
+    # - plot --------------------------------
+    for item in ec.border_segments:
+        geom = item[5]
+        X, Y = [], []
+        [(X.append(vertex[0]), Y.append(vertex[1])) for vertex in geom]    
+        plt.plot(X, Y, 'b-', alpha=0.5)    
+    
+    for item in ec.clipped:
+        geom = item[5]
+        X, Y = [], []
+        [(X.append(vertex[0]), Y.append(vertex[1])) for vertex in geom]    
+        plt.plot(X, Y, 'gH-', alpha=0.5, markersize=20)
+
+    for geom in ec.original_edges:
+        X, Y = [], []
+        [(X.append(vertex[0]), Y.append(vertex[1])) for vertex in geom]    
+        plt.plot(X, Y, 'rH-', markersize=5)
+    
+    X, Y = [], []
+    [(X.append(vertex[0]), Y.append(vertex[1])) for vertex in ec.vertices]
+    plt.plot(X, Y, 'ro')
+    
+    # plt.axis([-1, 11, -1, 11])
+    plt.show()
+
+
+def test2():
+#    81996.029 454995.4185 82010.37 455005.837
+#    LINESTRING(81979.573 454987.807, 81981.688 454985.0, 81996.029 454995.4185, 82010.37 455005.837, 82009.463 455007.209)
+#    POLYGON((81000.0 455000.0, 81000.0 456000.0, 82000.0 456000.0, 82000.0 455000.0, 81000.0 455000.0))
+    ec = EdgeClipper(bbox=Envelope(81000.0, 455000.0, 82000.0, 456000.0), border_face_id=None)
+    
+    ec.clip_edge(1, 
+        1, 2, 3, 4, 
+        geometry = LineString([[81979.573, 454987.807], 
+[81981.688, 454985.0], 
+[81996.029, 454995.4185], 
+[82010.37, 455005.837], 
+[82009.463, 455007.209]], srid=28992), 
+        attrs = {})
+    
+#    plot(ec)
+
         
 if __name__ == "__main__":
     test()
