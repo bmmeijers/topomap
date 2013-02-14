@@ -1,13 +1,15 @@
 import logging
 log = logging.getLogger(__name__)
 
-from connection.stateful import recordset, record, irecordset, execute
-from simplegeom.postgis import register
+#from connection.dumb import recordset, record, irecordset, execute
+#from simplegeom.postgis import register
 from simplegeom.wkb import dumps
 
-register()
+from connection import ConnectionFactory
+#register()
 
 from topomap import TopoMap, LoopFactory
+from clipper import EdgeClipper
 import warnings
 
 class TopoMapFactory(object):
@@ -21,6 +23,7 @@ class TopoMapFactory(object):
     def topo_map(cls, name, universe_id = None, srid = None):
         """Retrieves all Nodes, Edges, Faces for TopoMap ``name``
         """
+        connection = ConnectionFactory.connection(True)
         universe_id = universe_id
         srid = srid
         name = name
@@ -32,11 +35,11 @@ class TopoMapFactory(object):
         # faces
         sql = """SELECT 
             face_id::int,
-            feature_class::int 
+            -1 --feature_class::int 
         FROM
             {0}_face
             """.format(name)
-        for face_id, feature_class, in irecordset(sql):
+        for face_id, feature_class, in connection.irecordset(sql):
             topo_map.add_face(face_id, 
                               attrs = {'feature_class': feature_class,})
         
@@ -53,7 +56,7 @@ class TopoMapFactory(object):
         for edge_id, \
             start_node_id, end_node_id, \
             left_face_id, right_face_id, \
-            geometry, in irecordset(sql):
+            geometry, in connection.irecordset(sql):
 #            geometry = geom_from_binary(wkb)
             topo_map.add_edge(edge_id,
                               start_node_id, end_node_id,
@@ -69,10 +72,81 @@ class TopoMapFactory(object):
 
 
     @classmethod
+    def clipped_topo_map(cls, name, bbox, universe_id = None, srid = None):
+        """Retrieves all Nodes, Edges, Faces overlapping ``bbox`` for 
+        TopoMap ``name``
+        """
+        connection = ConnectionFactory.connection(True)
+        universe_id = universe_id
+        srid = srid
+        name = name
+        # TODO: get universe / srid from metadata if not given
+        assert universe_id is not None
+        assert srid is not None
+        # also add border face as item
+        border_face_id = -1
+        topo_map = TopoMap(universe_id = universe_id, srid = srid)
+        topo_map.add_face(border_face_id, 
+                              attrs = {'clipped': True}).unbounded = True
+        # faces
+        sql = """SELECT 
+            face_id::int,
+            mbr_geometry,
+            --feature_class::int
+            0 
+        FROM
+            {0}_face
+        WHERE
+            mbr_geometry && '{1}'::geometry
+            """.format(name, dumps(bbox.polygon)) # as_hexewkb(bbox, srid))
+        for face_id, mbr, feature_class, in connection.irecordset(sql):
+            topo_map.add_face(face_id, 
+                              attrs = {'feature_class': feature_class,
+                                       'clipped': False if bbox.contains_properly(mbr.envelope) else True})
+        
+        #edges
+        sql = """SELECT 
+            edge_id::int,
+            start_node_id::int, end_node_id::int,
+            left_face_id::int, right_face_id::int,
+            geometry::geometry
+        FROM 
+            {0}_edge
+        WHERE
+            geometry && '{1}'::geometry
+        """.format(name, dumps(bbox.polygon))
+        
+        ec = EdgeClipper(bbox=bbox, 
+                         border_face_id=-1)
+        for edge_id, \
+            start_node_id, end_node_id, \
+            left_face_id, right_face_id, \
+            geometry, in connection.irecordset(sql):
+            if bbox.contains_properly(geometry.envelope):
+                topo_map.add_edge(edge_id,
+                              start_node_id, end_node_id,
+                              left_face_id, right_face_id,
+                              geometry
+                              )
+            else:
+                ec.clip_edge(edge_id,
+                              start_node_id, end_node_id,
+                              left_face_id, right_face_id,
+                              geometry
+                     )
+        for item in ec.border_segments:
+            topo_map.add_edge(*item)
+        for item in ec.clipped:
+            topo_map.add_edge(*item)
+        LoopFactory.find_clipped_loops(topo_map)
+        return topo_map
+
+    @classmethod
     def topo_map_bbox(cls, name, bbox, universe_id = None, srid = None):
         """Retrieves all Nodes, Edges, Faces overlapping ``bbox`` for 
         TopoMap ``name``
         """
+        connection = ConnectionFactory.connection(True)
         universe_id = universe_id
         srid = srid
         name = name
@@ -91,7 +165,7 @@ class TopoMapFactory(object):
         WHERE
             mbr_geometry && '{1}'::geometry
             """.format(name, dumps(bbox)) # as_hexewkb(bbox, srid))
-        for face_id, feature_class, in irecordset(sql):
+        for face_id, feature_class, in connection.irecordset(sql):
             topo_map.add_face(face_id, 
                               attrs = {'feature_class': feature_class,})
 #                              attrs = {'imp_low': 0.0,
@@ -116,7 +190,7 @@ class TopoMapFactory(object):
         for edge_id, \
             start_node_id, end_node_id, \
             left_face_id, right_face_id, \
-            geometry, in irecordset(sql):
+            geometry, in connection.irecordset(sql):
             topo_map.add_edge(edge_id,
                               start_node_id, end_node_id,
                               left_face_id, right_face_id,
@@ -135,7 +209,7 @@ class TopoMapFactory(object):
         Retrieves all Nodes, Edges, Faces properly inside ``bbox`` and 
         not properly inside ``skip`` for TopoMap ``name``
         """
-        
+        connection = ConnectionFactory.connection(True)
         universe_id = universe_id
         srid = srid
         name = name
@@ -166,7 +240,7 @@ class TopoMapFactory(object):
             {2}
             """.format(name, dumps(bbox), exclusion)
         face_ids = set()
-        for face_id, feature_class, in irecordset(sql):
+        for face_id, feature_class, in connection.irecordset(sql):
             face_ids.add(face_id)
             topo_map.add_face(face_id, 
                               attrs = {'feature_class': feature_class,})
@@ -191,7 +265,7 @@ class TopoMapFactory(object):
         for edge_id, \
             start_node_id, end_node_id, \
             left_face_id, right_face_id, \
-            geometry, in irecordset(sql):
+            geometry, in connection.irecordset(sql):
             if left_face_id not in face_ids: 
                 left_face_id = universe_id
             if right_face_id not in face_ids:
@@ -215,10 +289,11 @@ class PolygonFactory():
     
     """
     def __init__(self):
+        #self.connection = ConnectionFactory.connection(True)
         pass
-
-    @classmethod
-    def polygon(cls, name, face_id, universe_id = None, srid = None):
+    
+    def polygon(self, name, face_id, universe_id = None, srid = None, 
+                connection = None):
         """Construct a Polygon for given ``face_id`` in TopoMap ``name``
         """
         
@@ -235,7 +310,7 @@ class PolygonFactory():
             {0}_face
         WHERE face_id = {1}
             """.format(name, face_id)
-        face_id, mbr_geometry, feature_class, = record(sql)
+        face_id, mbr_geometry, feature_class, = connection.record(sql)
         log.debug(face_id)
         topo_map.add_face(face_id, 
             attrs = {'feature_class': feature_class,
@@ -263,7 +338,7 @@ class PolygonFactory():
         for edge_id, \
             start_node_id, end_node_id, \
             left_face_id, right_face_id, \
-            geometry, in recordset(sql, params):
+            geometry, in connection.recordset(sql, params):
             # we set the face ptr to universe
             if left_face_id != face_id: 
                 left_face_id = fixed.id
@@ -285,6 +360,7 @@ class PolygonFactory():
         warnings.warn("Wings have not been fully tested")
 #        log.debug("starting wings")
         # TODO: get universe / srid from metadata if not given
+        connection = ConnectionFactory.connection(True)
         assert universe_id is not None
         assert srid is not None
         topo_map = TopoMap(universe_id = universe_id, srid = srid)
@@ -297,7 +373,7 @@ class PolygonFactory():
                 {0}_face
             WHERE face_id = {1}
                     """.format(name, face_id)
-            face_id, mbr_geometry, = record(sql)
+            face_id, mbr_geometry, = connection.record(sql)
 #            mbr_geometry = geom_from_binary(mbr_wkb)
             topo_map.add_face(face_id, attrs = {'fixed': False, })
         
@@ -333,7 +409,7 @@ class PolygonFactory():
         for edge_id, \
             start_node_id, end_node_id, \
             left_face_id, right_face_id, \
-            geometry, in recordset(sql, params):
+            geometry, in connection.recordset(sql, params):
             # we set the face ptr to universe
             if left_face_id != face_id: 
                 left_face_id = fixed.id
@@ -378,7 +454,7 @@ class PolygonFactory():
                         lcw_sign = +1
                     else:
                         lcw_sign = -1
-                    execute(sqll.format(name), parameters = ( edge.id, lcw_sign * lcw.id, lccw_sign * lccw.id,))
+                    connection.execute(sqll.format(name), parameters = ( edge.id, lcw_sign * lcw.id, lccw_sign * lccw.id,))
                 if edge.right_face is edge.face:
                     # rccw / next right
                     rccw = edge.next
@@ -392,7 +468,7 @@ class PolygonFactory():
                         rcw_sign = -1
                     else:
                         rcw_sign = +1
-                    execute(sqlr.format(name), parameters = (edge.id, rcw_sign * rcw.id, rccw_sign * rccw.id,))
+                    connection.execute(sqlr.format(name), parameters = (edge.id, rcw_sign * rcw.id, rccw_sign * rccw.id,))
 
 ##                print ""
 ##                print "e", edge.id
