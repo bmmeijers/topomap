@@ -3,9 +3,9 @@ import logging
 logging.basicConfig(
     format="%(asctime)s %(levelname)s (%(process)d) %(message)s", 
     stream=sys.stdout, 
-    level=logging.DEBUG)
+    level=logging.INFO)
 log = logging.getLogger(__name__)
-from connection.stateful import irecordset
+from connection import ConnectionFactory
 from topomap.io import PolygonFactory
 from multiprocessing import Pool
 
@@ -13,18 +13,23 @@ name = "tp_top10nl"
 universe_id = 0
 srid = 28992
 
-def reconstruct(face_id):
-    fid, = face_id
-    poly = PolygonFactory.polygon(name, fid, universe_id=universe_id, srid=srid)
-    log.info("Reconstructing {0}".format(fid))
+pf = PolygonFactory()
+conn = None 
 
-#for i, (face_id,) in enumerate(irecordset(sql)):
-#    if (i % 1000) == 0: print ""
-#    if (i % 100) == 0: print ".",
-#    sys.stdout.flush()
-#    factory = PolygonFactory()
+def reconstruct(face_id):
+    global conn
+    if conn is None:
+        conn = ConnectionFactory.connection(True)
+    fid, = face_id
+    try:
+        poly = pf.polygon(name, fid, universe_id=universe_id, srid=srid, connection=conn)
+        log.info("Face {0}".format(fid))
+    except:
+        
+        log.error("Problem reconstructing {0}".format(fid))
 
 if __name__ == '__main__':
+    connection = ConnectionFactory.connection(False)
     sql = """SELECT 
             face_id::int
         FROM 
@@ -34,4 +39,4 @@ if __name__ == '__main__':
         -- ORDER BY 
         --    face_id""".format(name, universe_id)
     pool = Pool() 
-    pool.map(reconstruct, irecordset(sql))
+    pool.map(reconstruct, connection.irecordset(sql))
