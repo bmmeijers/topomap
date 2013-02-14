@@ -1,0 +1,5 @@
+
+syntax: regexp
+^doc/build$
+syntax: regexp
+^src/topomap\.egg-info$
