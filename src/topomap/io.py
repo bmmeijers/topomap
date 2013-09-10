@@ -20,7 +20,7 @@ class TopoMapFactory(object):
         pass
 
     @classmethod
-    def topo_map(cls, name, universe_id = None, srid = None):
+    def topo_map(cls, name, universe_id = None, srid = None, attribute_mapping = None):
         """Retrieves all Nodes, Edges, Faces for TopoMap ``name``
         """
         connection = ConnectionFactory.connection(True)
@@ -32,41 +32,68 @@ class TopoMapFactory(object):
         assert srid is not None
         topo_map = TopoMap(universe_id = universe_id, srid = srid)
         
-        # faces
-        sql = """SELECT 
-            face_id::int,
-            -1 --feature_class::int 
-        FROM
-            {0}_face
-            """.format(name)
+        if attribute_mapping is not None:
+            # faces
+            sql = """SELECT 
+                {1[face_id]}::int,
+                {1[feature_class]}::int 
+            FROM
+                {0}_face
+            """.format(name, attribute_mapping)
+        else:
+            # faces
+            sql = """SELECT 
+                face_id::int,
+                feature_class::int 
+            FROM
+                {0}_face
+            --WHERE
+            --    face_id IN (2)
+                """.format(name)
         for face_id, feature_class, in connection.irecordset(sql):
             topo_map.add_face(face_id, 
                               attrs = {'feature_class': feature_class,})
         
-        #edges
-        sql = """SELECT 
-            edge_id::int,
-            start_node_id::int, end_node_id::int,
-            left_face_id::int, right_face_id::int,
-            --ST_AsBinary(geometry) 
-            geometry::geometry
-        FROM 
-            {0}_edge 
-        """.format(name)
+        
+        if attribute_mapping is not None:
+            # faces
+            sql = """SELECT 
+                {1[edge_id]}::int,
+                {1[start_node_id]}::int, 
+                {1[end_node_id]}::int,
+                
+                {1[left_face_id]}::int, 
+                {1[right_face_id]}::int,
+                
+                {1[geometry]}::geometry
+            FROM 
+                {0}_edge 
+            """.format(name, attribute_mapping)
+            
+        else:
+            #edges
+            sql = """SELECT 
+                edge_id::int,
+                start_node_id::int, 
+                end_node_id::int,
+                
+                left_face_id::int, 
+                right_face_id::int,
+                
+                geometry::geometry
+            FROM 
+                {0}_edge 
+            """.format(name)
         for edge_id, \
-            start_node_id, end_node_id, \
-            left_face_id, right_face_id, \
+            start_node_id, \
+            end_node_id, \
+            left_face_id, \
+            right_face_id, \
             geometry, in connection.irecordset(sql):
-#            geometry = geom_from_binary(wkb)
             topo_map.add_edge(edge_id,
                               start_node_id, end_node_id,
                               left_face_id, right_face_id,
-                              geometry
-                              #,
-                              #attrs = {'imp_low': 0.0, 'imp_high': 0.0,
-                              #         'lf_lo': left_face_id, 
-                              #         'rf_lo': right_face_id,}
-                              )
+                              geometry)
         LoopFactory.find_loops(topo_map)
         return topo_map
 
@@ -78,6 +105,7 @@ class TopoMapFactory(object):
         """
         connection = ConnectionFactory.connection(True)
         universe_id = universe_id
+        bbox = bbox.envelope
         srid = srid
         name = name
         # TODO: get universe / srid from metadata if not given
@@ -204,7 +232,7 @@ class TopoMapFactory(object):
         return topo_map
 
     @classmethod
-    def topo_map_proper_bbox(cls, name, bbox, skip = None, universe_id = None, srid = None):
+    def topo_map_wazaa(cls, name, bbox, universe_id = None, srid = None, skip = None):
         """
         Retrieves all Nodes, Edges, Faces properly inside ``bbox`` and 
         not properly inside ``skip`` for TopoMap ``name``
@@ -230,7 +258,8 @@ class TopoMapFactory(object):
         # faces
         sql = """SELECT 
             face_id::int,
-            -1 -- feature_class::int 
+            --feature_class::int 
+            feature_class::int 
         FROM
             {0}_face
         WHERE
@@ -243,12 +272,33 @@ class TopoMapFactory(object):
         for face_id, feature_class, in connection.irecordset(sql):
             face_ids.add(face_id)
             topo_map.add_face(face_id, 
-                              attrs = {'feature_class': feature_class,})
-        if face_ids:
-            inclusion = "AND (left_face_id IN ({0}) or right_face_id IN ({0}))".format(", ".join(map(str, face_ids)))
-        else:
-            inclusion = ""
-
+                              attrs = {'imp_low': 0.0,
+                                        'imp_high': 0.0,
+                                        'imp_own': 0.0,
+                                        'min_step': 0,
+                                        'max_step': 0,
+                                       'feature_class': feature_class,
+                                       })
+        
+        # We could skip 'dangling' edges
+        # By looking at which edges we really need
+#         if face_ids:
+#             inclusion = "AND (left_face_id IN ({0}) or right_face_id IN ({0}))".format(", ".join(map(str, face_ids)))
+#         else:
+        inclusion = ""
+        
+        # faces
+        faces_sql = """SELECT 
+            face_id::int
+        FROM
+            {0}_face
+        WHERE
+            mbr_geometry && '{1}'
+            AND
+            ST_ContainsProperly('{1}', mbr_geometry)
+            {2}
+            """.format(name, dumps(bbox), exclusion)
+        print faces_sql
         #edges
         sql = """SELECT 
             edge_id::int,
@@ -259,21 +309,36 @@ class TopoMapFactory(object):
             {0}_edge
         WHERE
             geometry && '{1}'
+            AND
+            --ST_ContainsProperly('{1}', geometry)
+            --AND 
+            (left_face_id IN ({3}) or right_face_id IN ({3}))
             {2}
-        """.format(name, dumps(bbox), inclusion)
-#        print sql
+        """.format(name, dumps(bbox), inclusion, faces_sql)
+        print sql
         for edge_id, \
             start_node_id, end_node_id, \
             left_face_id, right_face_id, \
             geometry, in connection.irecordset(sql):
-            if left_face_id not in face_ids: 
+            orig_left_face_id = left_face_id
+            orig_right_face_id = right_face_id
+            if left_face_id not in face_ids:
+                orig_left_face_id = left_face_id
                 left_face_id = universe_id
             if right_face_id not in face_ids:
+                orig_right_face_id = right_face_id
                 right_face_id = universe_id
             topo_map.add_edge(edge_id,
                               start_node_id, end_node_id,
                               left_face_id, right_face_id,
-                              geometry
+                              geometry,
+                              attrs = {'original_left_face_id': orig_left_face_id,
+                                       'original_right_face_id': orig_right_face_id,
+                                       'imp_low': 0.0, 'imp_high': 0.0,
+                                       'lf_lo': orig_left_face_id, 
+                                       'rf_lo': orig_right_face_id,
+                                       
+                                       }
                               #,
                               #attrs = {'imp_low': 0.0, 'imp_high': 0.0,
                               #         'lf_lo': left_face_id, 
@@ -499,3 +564,5 @@ class PolygonFactory():
 #                        rcw_sign = +1
 #                    else:
 #                        rcw_sign = -1
+if __name__ == "__main__":
+    we = TopoMapFactory.topo_map('delft10nl', 0, 28992)
