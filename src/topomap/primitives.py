@@ -61,13 +61,13 @@ class Face(object):
         self.rings = []
         self.area = None
 
-    def multigeometry(self):
+    def multigeometry(self, srid = 0):
         """Returns a list of geometries for this face
         
         This is a list, because a face can become a multi-part geometry 
         after the clipping operation
         """
-        return PolygonizeFactory.face_to_geometry(self)
+        return PolygonizeFactory.face_to_geometry(self, srid=srid)
 
     @property
     def half_edges(self):
@@ -256,7 +256,7 @@ class Loop(object):
         try:
             assert self.start is not None
         except:
-            raise Exception("ERROR in {0} -- Orphaned loop found: no associated half is_edge".format(self))
+            raise Exception("ERROR in {0} -- Orphaned loop found: no associated halfedge".format(self))
         edge = self.start
         guard = 0
         while True:
@@ -413,7 +413,7 @@ class HalfEdge(object):
             prev_id = self.prev.id
         if self.next is not None:
             next_id = self.next.id
-        return "HE<e{1} n{2} f{3} ({0} - nxt:{4} prv:{5})>".format( id(self), 
+        return "HE<e{1} n{2} f{3} ({0} - next:{4} prv:{5})>".format( id(self), 
                                                   self.id, self.origin.id, self.face.id,
                                                   next_id, prev_id
                                                   )
@@ -439,13 +439,18 @@ class HalfEdge(object):
     
     @property
     def geometry(self):
-        """Returns copy of geometry
+        """Returns copy of geometry that *is* 
+        consistent with
+        start_node, end_node, 
+        left_face and right_face properties
         """
         if self.anchor:
+            # Copy
             return self.anchor.geometry[:]
         else:
+            # Copy
             return self.twin.anchor.geometry[:]
-
+ 
     @property
     def start_node(self):
         """Returns Node at start of this HalfEdge
@@ -454,7 +459,7 @@ class HalfEdge(object):
             return self.origin
         else:
             return self.twin.origin
-
+ 
     @property
     def end_node(self):
         """Returns Node at end of this HalfEdge
@@ -463,7 +468,7 @@ class HalfEdge(object):
             return self.twin.origin
         else:
             return self.origin
-
+ 
     @property
     def left_face(self):
         """Returns Face at left of this HalfEdge
@@ -472,7 +477,7 @@ class HalfEdge(object):
             return self.face
         else:
             return self.twin.face
-
+ 
     @property
     def right_face(self):
         """Returns Face at right of this HalfEdge
@@ -499,7 +504,7 @@ class PolygonizeFactory(object):
         pass
     
     @classmethod
-    def face_to_geometry(cls, face):
+    def face_to_geometry(cls, face, srid = 0):
         """Returns a list of geometries for this face
         
         This is a list, because a face can become a multi-part geometry 
@@ -509,7 +514,7 @@ class PolygonizeFactory(object):
         area = 0.
         try:
             assert len(face.loops) > 0
-        except:
+        except AssertionError:
             log.warning('Error in face {0} -- no loops for this face'.format(face.id))
             return []
         for loop in face.loops:
@@ -525,7 +530,7 @@ class PolygonizeFactory(object):
         # -> degenerate have no area
         try:
             assert len(face.rings) > 0
-        except:
+        except AssertionError:
             log.warning("{0} has no rings at all".format(face))
             return []
         #
@@ -562,7 +567,7 @@ class PolygonizeFactory(object):
 #            parts = []
 #        else:
         if len(face.rings) == 1:
-            parts = [Polygon(shell=ring)]
+            parts = [Polygon(shell=ring, srid=srid)]
         elif outer == 1:
             # find largest ring (this must be outer shell)
             largest = face.rings[0]
@@ -580,7 +585,7 @@ class PolygonizeFactory(object):
                     # skip outer shell
                     continue
                 inner.append(face.rings[i][1])
-            poly = Polygon(shell=face.rings[j][1], holes = inner)
+            poly = Polygon(shell=face.rings[j][1], holes = inner, srid=srid)
             # return this poly as only part
             parts = [poly]
         else:
@@ -592,7 +597,7 @@ class PolygonizeFactory(object):
                 if area < 0:
                     inner.append(ring)
                 elif area > 0:
-                    parts.append(Polygon(shell = ring))
+                    parts.append(Polygon(shell = ring, srid=srid))
             # then we check which inner ring is covered by which 
             # (there should be exactly one) of the outer rings
             for iring in inner:

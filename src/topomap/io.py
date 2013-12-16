@@ -20,7 +20,10 @@ class TopoMapFactory(object):
         pass
 
     @classmethod
-    def topo_map(cls, name, universe_id = None, srid = None, attribute_mapping = None):
+    def topo_map(cls, name, 
+                 universe_id = None, srid = None, 
+                 attribute_mapping = None,
+                 where = None):
         """Retrieves all Nodes, Edges, Faces for TopoMap ``name``
         """
         connection = ConnectionFactory.connection(True)
@@ -47,13 +50,15 @@ class TopoMapFactory(object):
                 feature_class::int 
             FROM
                 {0}_face
-            --WHERE
-            --    face_id IN (2)
                 """.format(name)
+        if where is not None:
+            sql += where
         for face_id, feature_class, in connection.irecordset(sql):
+            assert face_id is not None
             topo_map.add_face(face_id, 
                               attrs = {'feature_class': feature_class,})
         
+        logging.debug(sql)
         
         if attribute_mapping is not None:
             # faces
@@ -84,12 +89,22 @@ class TopoMapFactory(object):
             FROM 
                 {0}_edge 
             """.format(name)
+        if where is not None:
+            sql += where
+        
+        logging.debug(sql)
+        
         for edge_id, \
             start_node_id, \
             end_node_id, \
             left_face_id, \
             right_face_id, \
             geometry, in connection.irecordset(sql):
+            try:
+                for item in (edge_id, start_node_id, end_node_id, left_face_id, right_face_id, geometry):
+                    assert item is not None, item
+            except AssertionError:
+                raise ValueError("Edge {} not correct".format(edge_id))
             topo_map.add_edge(edge_id,
                               start_node_id, end_node_id,
                               left_face_id, right_face_id,

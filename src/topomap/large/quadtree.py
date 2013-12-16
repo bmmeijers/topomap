@@ -172,7 +172,7 @@ def reconstruct():
 def do(quad):
     poly, skip, = quad
     srid = 28992
-    topo_map = TopoMapFactory.topo_map_proper_bbox(name=NAME, 
+    topo_map = TopoMapFactory.topo_map(name=NAME, 
                                         bbox=poly,
                                         skip=skip,
                                         universe_id=0, 

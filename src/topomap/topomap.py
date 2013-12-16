@@ -3,6 +3,9 @@
 
 from primitives import Face, Anchorage, Loop, HalfEdge, Node
 from primitives import angle
+import logging
+
+log = logging.getLogger(__name__)
 
 INIT = False
 VISITED = True
@@ -54,6 +57,7 @@ class TopoMap(object):
         Edge object.
         """
         if edge_id not in self.half_edges:
+            log.debug("Edge {} not in halfedges, adding".format(edge_id))
             attribute = Anchorage(edge_id, geometry, attrs)
             # half edges
             he0 = HalfEdge(attribute)
@@ -87,6 +91,7 @@ class TopoMap(object):
             # add is_edge to dictionary of edges
             self.half_edges[edge_id] = he0
         else:
+            log.debug("Edge {} already in halfedges".format(edge_id))
             he0 = self.half_edges[edge_id]
         return he0
 

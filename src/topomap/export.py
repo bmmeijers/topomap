@@ -9,7 +9,7 @@ class TopoMapExporter(object):
         pass
 
     @classmethod
-    def export(cls, topo_map, name, stream, wings = False):
+    def export(cls, topo_map, name, stream, face_geometry = True, wings = False):
         if wings:
             warnings.warn("Wings have not been fully tested")
         # Make schema
@@ -36,6 +36,8 @@ class TopoMapExporter(object):
         class_ = Field("feature_class", "integer")
         pip = Field("pip_geometry", "point")
         mbr = Field("mbr_geometry", "box2d")
+        if face_geometry:
+            poly = Field("geometry", "polygon")            
         #
         schema = Schema()
         schema.add_field(face_id)
@@ -43,9 +45,13 @@ class TopoMapExporter(object):
         schema.add_field(class_)
         schema.add_field(pip)
         schema.add_field(mbr)
+        if face_geometry:
+            schema.add_field(poly)
         schema.add_index( Index(fields = [face_id], primary_key = True) )
         schema.add_index( Index(fields = [pip]) )
         schema.add_index( Index(fields = [mbr], cluster = True) )
+        if face_geometry:
+            schema.add_index( Index(fields = [poly], cluster = True) )
         #
         faces = Layer(schema, '{}_face'.format(name), srid = topo_map.srid)
         
@@ -107,15 +113,23 @@ class TopoMapExporter(object):
         # faces
         for face in topo_map.faces.itervalues():
             if not face.unbounded:
-                geoms = face.multigeometry()
+                geoms = face.multigeometry(srid = topo_map.srid)
                 assert len(geoms) == 1
                 poly = geoms[0]
-                faces.append(face.id, 
-                    round(face.area, 3), 
-                    face.attrs['feature_class'], 
-                    poly.representative_point, 
-                    poly.envelope)
-        
+                if face_geometry:
+                    record = (face.id, 
+                        round(face.area, 3), 
+                        face.attrs['feature_class'], 
+                        poly.representative_point(), 
+                        poly.envelope,
+                        poly)
+                else:
+                    record = (face.id, 
+                        round(face.area, 3), 
+                        face.attrs['feature_class'], 
+                        poly.representative_point(), 
+                        poly.envelope)                
+                faces.append(*record)
         # nodes
         for node in topo_map.nodes.itervalues():
             nodes.append(node.id, node.geometry)
@@ -177,6 +191,6 @@ class TopoMapExporter(object):
             edges.append(*edge)
         
         # TODO: make use of StringIO / file handler
-        print >> stream, dumps(nodes)
-        print >> stream, dumps(edges)
-        print >> stream, dumps(faces)
+        stream.write(dumps(nodes))
+        stream.write(dumps(edges))
+        stream.write(dumps(faces))
