@@ -101,10 +101,16 @@ class TopoMapFactory(object):
             right_face_id, \
             geometry, in connection.irecordset(sql):
             try:
-                for item in (edge_id, start_node_id, end_node_id, left_face_id, right_face_id, geometry):
-                    assert item is not None, item
+                assert edge_id is not None
+                assert start_node_id is not None
+                assert end_node_id is not None
+                assert left_face_id is not None
+                assert right_face_id is not None
+                assert geometry is not None
+                #for item in (edge_id, start_node_id, end_node_id, left_face_id, right_face_id, geometry):
+                #   assert item is not None, item
             except AssertionError:
-                raise ValueError("Edge {} not correct".format(edge_id))
+                raise ValueError("Edge {} not correct -- None field found".format(edge_id))
             topo_map.add_edge(edge_id,
                               start_node_id, end_node_id,
                               left_face_id, right_face_id,
