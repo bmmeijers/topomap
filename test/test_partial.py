@@ -21,7 +21,7 @@ tm = factory.topo_map_proper_bbox(name='adam_centre_clean',
                                   universe_id=-1, 
                                   srid=28992)
 for he in tm.half_edges.itervalues():
-    fh.write("{};{}\n".format(he.id, he.geometry))
+    fh.write("{0};{1}\n".format(he.id, he.geometry))
 
 fh.close()
 
@@ -34,5 +34,5 @@ fh = open("/tmp/faces.wkt", "w")
 fh.write("id;wkt\n")
 for face in tm.faces.itervalues():
     if not face.unbounded and not face.attrs['locked']:
-        fh.write("{};{}\n".format(face.id, face.multigeometry()[0]))
+        fh.write("{0};{1}\n".format(face.id, face.multigeometry()[0]))
 fh.close()

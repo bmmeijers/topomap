@@ -110,7 +110,7 @@ class TopoMapFactory(object):
                 #for item in (edge_id, start_node_id, end_node_id, left_face_id, right_face_id, geometry):
                 #   assert item is not None, item
             except AssertionError:
-                raise ValueError("Edge {} not correct -- None field found".format(edge_id))
+                raise ValueError("Edge {0} not correct -- None field found".format(edge_id))
             topo_map.add_edge(edge_id,
                               start_node_id, end_node_id,
                               left_face_id, right_face_id,
@@ -272,7 +272,7 @@ class TopoMapFactory(object):
         if skip:
             exclude = []
             for item in skip:
-                exclude.append("""AND NOT ST_ContainsProperly('{}', mbr_geometry)""".format(dumps(item)))
+                exclude.append("""AND NOT ST_ContainsProperly('{0}', mbr_geometry)""".format(dumps(item)))
             exclusion = " ".join(exclude)
         else:
             exclusion = ""
@@ -415,7 +415,7 @@ class PolygonFactory():
                 right_face_id::int,
                 geometry::geometry
             FROM
-                {}_edge
+                {0}_edge
             WHERE 
                 (left_face_id = %s or right_face_id = %s) 
             AND
@@ -472,7 +472,7 @@ class PolygonFactory():
                     right_face_id::int,
                     geometry::geometry
                 FROM
-                    {}_edge
+                    {0}_edge
                 WHERE 
                     (left_face_id = %s or right_face_id = %s) 
                 AND
@@ -487,7 +487,7 @@ class PolygonFactory():
                     right_face_id::int,
                     geometry::geometry
                 FROM
-                    {}_edge
+                    {0}_edge
                 WHERE 
                     (left_face_id = %s or right_face_id = %s) 
                 """.format(name)

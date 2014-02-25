@@ -33,9 +33,9 @@ if __name__ == '__main__':
     sql = """SELECT 
             face_id::int
         FROM 
-            {}_face
+            {0}_face
         WHERE 
-            face_id <> {}
+            face_id <> {1}
         -- ORDER BY 
         --    face_id""".format(name, universe_id)
     pool = Pool() 

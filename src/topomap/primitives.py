@@ -98,9 +98,11 @@ class Anchorage(object):
     
     __slots__ = ('id', 'attrs', 'geometry')
     
-    def __init__(self, edge_id, geometry, attrs = {}):
+    def __init__(self, edge_id, geometry, attrs = None):
         self.id = edge_id
         self.geometry = geometry
+        if attrs is None:
+            attrs = {}
         self.attrs = attrs
 
 
@@ -109,8 +111,10 @@ class Node(object):
     """
     __slots__ = ('id', 'attrs', 'geometry', 'he', 'degree')
     
-    def __init__(self, node_id, geometry, attrs = {}):
+    def __init__(self, node_id, geometry, attrs = None):
         self.id = node_id
+        if attrs is None:
+            attrs = {}
         self.attrs = attrs
         self.geometry = geometry
         self.he = None # half is_edge pointer
@@ -555,7 +559,7 @@ class PolygonizeFactory(object):
                 assert outer >= 1
                 assert degenerate == 0
         except AssertionError:
-            log.warning("ERROR: Face {} has {} inner; {} outer; {} degenerate".format(face.id,
+            log.warning("ERROR: Face {0} has {1} inner; {2} outer; {3} degenerate".format(face.id,
                 inner, outer, degenerate))
 #            for area, ring, loop, in face.rings:
 #                print ring

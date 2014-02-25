@@ -22,9 +22,11 @@ class TopoMap(object):
         self.nodes = {}
         self.add_face(universe_id, unbounded = True)
 
-    def add_face(self, face_id, attrs = {}, unbounded = False):
+    def add_face(self, face_id, attrs = None, unbounded = False):
         """Adds a Face to the TopoMap
         """
+        if attrs is None:
+            attrs = {}
         if face_id not in self.faces:
             face = Face(face_id, attrs, unbounded)
             self.faces[face_id] = face
@@ -47,7 +49,7 @@ class TopoMap(object):
     def add_edge(self, edge_id,
         start_node_id, end_node_id,
         left_face_id, right_face_id,
-        geometry, attrs = {}):
+        geometry, attrs = None):
         """Adds an Edge to the TopoMap
         
         Also creates Node objects if not yet there (start/end)
@@ -56,8 +58,10 @@ class TopoMap(object):
         Calls add_edge method on Node objects to set wing pointers for created
         Edge object.
         """
+        if attrs is None:
+            attrs = {}
         if edge_id not in self.half_edges:
-            log.debug("Edge {} not in halfedges, adding".format(edge_id))
+            log.debug("Edge {0} not in halfedges, adding".format(edge_id))
             attribute = Anchorage(edge_id, geometry, attrs)
             # half edges
             he0 = HalfEdge(attribute)
@@ -91,7 +95,7 @@ class TopoMap(object):
             # add is_edge to dictionary of edges
             self.half_edges[edge_id] = he0
         else:
-            log.debug("Edge {} already in halfedges".format(edge_id))
+            log.debug("Edge {0} already in halfedges".format(edge_id))
             he0 = self.half_edges[edge_id]
         return he0
 
@@ -129,8 +133,10 @@ class TopoMap(object):
         he1.blank()
         del self.half_edges[edge_id]
         
-    def add_node(self, node_id, geometry, attrs = {}):
+    def add_node(self, node_id, geometry, attrs = None):
         """Adds a Node to the TopoMap"""
+        if attrs is None:
+            attrs = {}
         if node_id not in self.nodes:
             node = Node(node_id, geometry, attrs)
             self.nodes[node_id] = node
@@ -330,7 +336,7 @@ class LoopFactory(object):
                 pass
             if geoms:
                 for geom in geoms:
-                    fh.write("{};{};{}\n".format(face.id, geom, face.attrs['clipped']))
+                    fh.write("{0};{1};{2}\n".format(face.id, geom, face.attrs['clipped']))
         fh.close()
         for remove in to_remove:
             topomap.remove_face(remove)

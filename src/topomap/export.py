@@ -28,7 +28,7 @@ class TopoMapExporter(object):
         schema.add_index( Index(fields = [node_id], primary_key = True) )
         schema.add_index( Index(fields = [point], cluster = True) )
         #
-        nodes = Layer(schema, '{}_node'.format(name), srid = topo_map.srid)
+        nodes = Layer(schema, '{0}_node'.format(name), srid = topo_map.srid)
         
         # FACES
         face_id = Field("face_id", "numeric")
@@ -53,7 +53,7 @@ class TopoMapExporter(object):
         if face_geometry:
             schema.add_index( Index(fields = [poly], cluster = True) )
         #
-        faces = Layer(schema, '{}_face'.format(name), srid = topo_map.srid)
+        faces = Layer(schema, '{0}_face'.format(name), srid = topo_map.srid)
         
         # TODO:
         # - boundary_edge_id: signed edge on outer loop, which starts loop in
@@ -108,7 +108,7 @@ class TopoMapExporter(object):
         schema.add_index( Index(fields = [end]) )
         schema.add_index( Index(fields = [linestring], cluster = True) )
         #
-        edges = Layer(schema, '{}_edge'.format(name), srid = topo_map.srid)
+        edges = Layer(schema, '{0}_edge'.format(name), srid = topo_map.srid)
         
         # faces
         for face in topo_map.faces.itervalues():
