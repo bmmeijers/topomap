@@ -304,49 +304,56 @@ class Loop(object):
                     if edge.origin not in visit_count:
                         visit_count[edge.origin] = 1
                     visit_count[edge.origin] += 1
-            print visit_count
             if tangent_nodes:
                 rings = []
-                print "start"
                 ring = LineString()
                 first = True
                 start_node = None
                 end_node = None
+                edge_seen = set()
                 for edge in self.half_edges:
-                    print "now at", edge.id
-                    if edge.anchor is not None:
-                        geom = edge.anchor.geometry
-                        step = 1
-                    else:
-                        geom = edge.twin.anchor.geometry
-                        step = -1
-                    if first:
-                        s = slice(None, None, step)
-                        first = False
-                    else:
-                        if step == -1:
-                            s = slice(-2, None, step)
+                    is_flat = edge.twin.face is edge.face
+                    if not edge.id in edge_seen:
+                        if edge.anchor is not None:
+                            geom = edge.anchor.geometry
+                            step = 1
                         else:
-                            assert step == 1
-                            s = slice(1, None, step)
-                    ring.extend(geom, s)
+                            geom = edge.twin.anchor.geometry
+                            step = -1
+                        if first:
+                            s = slice(None, None, step)
+                            first = False
+                        else:
+                            if step == -1:
+                                s = slice(-2, None, step)
+                            else:
+                                assert step == 1
+                                s = slice(1, None, step)
+                        ring.extend(geom, s)
+
+                    if is_flat:
+                        edge_seen.add(edge.id)
+
                     if start_node is None:
                         start_node = edge.origin
                     end_node = edge.twin.origin
 
                     if end_node in tangent_nodes:
-                        print "old visit count for node", end_node.id, "=", visit_count[end_node], "loops left to make", visit_count[end_node]-1 #, is_even(visit_count[end_node])
                         visit_count[end_node] -= 1
                         
                         # 3 cases:
                         #  stack what was made and open new one
                         #  finish what was made and open new one
                         #  finish what was made and continue previous one
-                        
                         if start_node is end_node:
                             # finish was what made
-                            rings.append(ring)
+                            if is_flat:
+                                pass
+                            else:
+                                rings.append(LinearRing(ring))
                             loops_to_make = visit_count[end_node]
+                            # FIXME: these conditions are a bit complex
+                            # can they be simplified ????
                             if loops_to_make > 0:
                                 # open new one
                                 start_node = None
@@ -358,6 +365,7 @@ class Loop(object):
                                 ring, start_node = stack.pop()
                                 first = False
                             else:
+                                assert loops_to_make == 0
                                 # open new one
                                 start_node = None
                                 end_node = None
@@ -365,33 +373,17 @@ class Loop(object):
                                 first = True
                         else:
                             # stack what was made and open new one
-                            print "start"
                             stack.append( (ring, start_node) )
-                            print "pushing"
                             start_node = None
                             end_node = None
                             ring = LineString()
                             first = True
-                        
-#                         if loops_to_make > 0:
-#                             print "start"
-#                             stack.append( (ring, start_node) )
-#                             print "pushing"
-#                             start_node = None
-#                             end_node = None
-#                             ring = LineString()
-#                             first = True
-#                         else:
-#                             assert end_node is start_node
-#                             print "storing", ring
-#                             print "popping"
-#                             rings.append(ring)
-#                             ring, start_node = stack.pop()
-#                             first = False
                 if len(ring):
-                    print "storing remnant", ring
                     assert start_node is end_node
-                    rings.append(ring)
+                    if is_flat:
+                        pass
+                    else:
+                        rings.append(LinearRing(ring))
                 # postcondition: stack should be empty now
                 assert not stack, "stack should be empty now"
                 self.linear_rings = rings
