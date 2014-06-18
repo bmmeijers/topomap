@@ -4,7 +4,7 @@ log = logging.getLogger(__name__)
 from math import pi, atan2
 import sys
 
-from simplegeom.geometry import Polygon, LinearRing
+from simplegeom.geometry import Polygon, LinearRing, LineString
 
 PI2 = 2 * pi
 INIT = False
@@ -292,6 +292,7 @@ class Loop(object):
             nodes = set() 
             tangent_nodes = set()
             stack = []
+            edge_seen = set()
             for edge in self.half_edges:
                 if edge.origin not in nodes:
                     nodes.add(edge.origin)
@@ -299,28 +300,33 @@ class Loop(object):
                     tangent_nodes.add(edge.origin)
             if tangent_nodes:
                 rings = []
-                ring = LinearRing()
+                ring = LineString()
                 first = True
                 start_node = None
                 end_node = None
+                is_collapsed = False
                 for edge in self.half_edges:
-                    if edge.anchor is not None:
-                        geom = edge.anchor.geometry
-                        step = 1
+                    if edge.id not in edge_seen:
+                        edge_seen.add(edge.id)
                     else:
-                        geom = edge.twin.anchor.geometry
-                        step = -1
-                    if first:
-                        s = slice(None, None, step)
-                        first = False
-                    else:
-                        if step == -1:
-                            s = slice(-2, None, step)
+                        is_collapsed = True
+                    if not is_collapsed:
+                        if edge.anchor is not None:
+                            geom = edge.anchor.geometry
+                            step = 1
                         else:
-                            assert step == 1
-                            s = slice(1, None, step)
-#                    extend_slice(ring, geom, s)
-                    ring.extend(geom, s)
+                            geom = edge.twin.anchor.geometry
+                            step = -1
+                        if first:
+                            s = slice(None, None, step)
+                            first = False
+                        else:
+                            if step == -1:
+                                s = slice(-2, None, step)
+                            else:
+                                assert step == 1
+                                s = slice(1, None, step)
+                        ring.extend(geom, s)
                     if start_node is None:
                         start_node = edge.origin
                     end_node = edge.twin.origin
@@ -329,46 +335,55 @@ class Loop(object):
                             stack.append( (ring, start_node) )
                             start_node = None
                             end_node = None
-                            ring = LinearRing()
+                            ring = LineString()
                             first = True
                         else: 
-                            rings.append(ring)
+                            if is_collapsed:
+                                rings.append(ring)
+                                is_collapsed = False
+                            else:
+                                rings.append(LinearRing(ring))
                             if stack:
                                 ring, start_node = stack.pop()
                                 first = False
                             else:
-                                ring = LinearRing()
+                                ring = LineString()
                                 first = True
                 if len(ring):
-                    try:
-                        assert start_node is end_node
-                        rings.append(ring)
-                    except AssertionError:
-                        pass
-                    
+                    rings.append(ring)
                 self.linear_rings = rings
             else:
-                ring = LinearRing()
+                ring = LineString()
                 first = True
+                edge_seen = set()
+                is_collapsed = False
                 for edge in self.half_edges:
-                    if edge.anchor is not None:
-                        geom = edge.anchor.geometry
-                        step = 1
+                    if edge.id in edge_seen:
+                        is_collapsed = True
+                        continue
                     else:
-                        geom = edge.twin.anchor.geometry
-                        step = -1
-                    if first:
-                        s = slice(None, None, step)
-                        first = False
-                    else:
-                        if step == -1:
-                            s = slice(-2, None, step)
+                        edge_seen.add(edge.id)
+                        if edge.anchor is not None:
+                            geom = edge.anchor.geometry
+                            step = 1
                         else:
-                            assert step == 1
-                            s = slice(1, None, step)
+                            geom = edge.twin.anchor.geometry
+                            step = -1
+                        if first:
+                            s = slice(None, None, step)
+                            first = False
+                        else:
+                            if step == -1:
+                                s = slice(-2, None, step)
+                            else:
+                                assert step == 1
+                                s = slice(1, None, step)
 #                    extend_slice(ring, geom, s)
                     ring.extend(geom, s)
-                self.linear_rings = [ring]
+                if is_collapsed:
+                    self.linear_rings = [ring]
+                else:
+                    self.linear_rings = [LinearRing(ring)]
                 
 ##            Expensive checks!
 #            for ring in self.linear_rings:

@@ -193,11 +193,11 @@ class LoopFactory(object):
             topomap.label_half_edges(INIT)
             half_edges = topomap.half_edges.itervalues()
         for item in half_edges:
-            for edge in (item, item.twin):
-                if edge.label == VISITED:
+            for half_edge in (item, item.twin):
+                if half_edge.label == VISITED:
                     continue
                 else:
-                    start = edge
+                    start = half_edge
                     loop = Loop(start)
                     start.face.loops.append(loop)
                     guard = 0
@@ -205,18 +205,18 @@ class LoopFactory(object):
                         guard += 1
                         if guard > 500000:
                             raise Exception('Too much iteration for {0}, started at {1}'.format(start.face, start))
-                        edge.label = VISITED
-                        edge.loop = loop
+                        half_edge.label = VISITED
+                        half_edge.loop = loop
                         try:
-                            assert edge.face is start.face, "{0}, reconstructing: {1}".format(edge, start.face)
+                            assert half_edge.face is start.face, "{0}, reconstructing: {1}".format(half_edge, start.face)
                         except:
-                            print "ERROR: {0}".format(edge)
+                            print "ERROR: {0}".format(half_edge)
                             print "... reconstructing: {0}".format(start.face)
-                            print "...", edge, edge.face, start.face
+                            print "...", half_edge, half_edge.face, start.face
                             print ""
                             raise
-                        edge = edge.next
-                        if edge is start:
+                        half_edge = half_edge.next
+                        if half_edge is start:
                             break
 
     @classmethod
