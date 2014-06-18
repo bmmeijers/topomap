@@ -4,7 +4,7 @@ Changelog for topomap
 0.1.3 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Added possibility of having LineStrings for a Loop its geometry
 
 
 0.1.2 (2014-06-11)
