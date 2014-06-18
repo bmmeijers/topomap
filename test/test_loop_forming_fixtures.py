@@ -6,32 +6,85 @@ Edge = namedtuple("Edge", "edge_id start_node_id end_node_id left_face_id right_
 Face = namedtuple("Face", "face_id feature_class")
 
 edges = [ 
-    [Edge(1, 1, 2, 1, 1, LineString([(1,1), (2,1)])),
-     Edge(2, 3, 3, 1, 0, LineString([(0, 0), (3, 0), (3, 2), (0, 2), (0, 0)])),
-     Edge(3, 4, 1, 1, 1, LineString([(0.5, 1), (1,1)])),
-     ],
-    [Edge(1, 1, 2, 1, 1, LineString([(1,1), (2,1)])),
-     Edge(2, 3, 3, 1, 0, LineString([(0, 0), (3, 0), (3, 2), (0, 2), (0, 0)])),
-     ],
-    [Edge(1, 1, 2, 1, 1, LineString([(1,1), (2,1)])),
-     Edge(2, 3, 3, 1, 0, LineString([(0, 0), (3, 0), (3, 2), (0, 2), (0, 0)])),
-     Edge(3, 4, 1, 1, 1, LineString([(0.5, 1), (1,1)])),
-     Edge(4, 3, 1, 1, 1, LineString([(0, 0), (1,1)])),
-     ],
-    [Edge(2, 3, 3, 1, 0, LineString([(0, 0), (3, 0), (3, 2), (0, 2), (0, 0)])),
-     Edge(4, 3, 1, 1, 1, LineString([(0, 0), (1,1)])),
-     Edge(1, 1, 1, 2, 1, LineString([(1,1), (2,1), (2, 1.5), (1,1)]))
-     ]
+#     [Edge(1, 1, 2, 1, 1, LineString([(1,1), (2,1)])),
+#      Edge(2, 3, 3, 1, 0, LineString([(0, 0), (3, 0), (3, 2), (0, 2), (0, 0)])),
+#      Edge(3, 4, 1, 1, 1, LineString([(0.5, 1), (1,1)])),
+#      ],
+#     [Edge(1, 1, 2, 1, 1, LineString([(1,1), (2,1)])),
+#      Edge(2, 3, 3, 1, 0, LineString([(0, 0), (3, 0), (3, 2), (0, 2), (0, 0)])),
+#      ],
+#     [Edge(1, 1, 2, 1, 1, LineString([(1,1), (2,1)])),
+#      Edge(2, 3, 3, 1, 0, LineString([(0, 0), (3, 0), (3, 2), (0, 2), (0, 0)])),
+#      Edge(3, 4, 1, 1, 1, LineString([(0.5, 1), (1,1)])),
+#      Edge(4, 3, 1, 1, 1, LineString([(0, 0), (1,1)])),
+#      ],
+#     [Edge(2, 3, 3, 1, 0, LineString([(0, 0), (3, 0), (3, 2), (0, 2), (0, 0)])),
+#      Edge(4, 3, 1, 1, 1, LineString([(0, 0), (1,1)])),
+#      Edge(1, 1, 1, 2, 1, LineString([(1,1), (2,1), (2, 1.5), (1,1)]))
+#      ],
+#     [Edge(2, 3, 3, 1, 0, LineString([(0, 0), (3, 0), (3, 2), (0, 2), (0, 0)])),
+#      Edge(4, 3, 1, 1, 1, LineString([(0, 0), (1,1)])),
+#      Edge(1, 1, 1, 2, 1, LineString([(1,1), (2,1), (2, 1.5), (1,1)])),
+#      Edge(3, 1, 1, 1, 3, LineString([(1,1), (0.5,1), (0.5, 1.5), (1,1)]))
+#      ],
+#      [
+#       # loop
+#       Edge(1, 1, 2, 1, 0, LineString([(0, 0), (3, 0)])),
+#       Edge(2, 2, 3, 1, 0, LineString([(3, 0), (3, 2)])),
+#       Edge(3, 3, 4, 1, 0, LineString([(3, 2), (0, 2)])),
+#       Edge(4, 4, 1, 1, 0, LineString([(0, 2), (0, 0)])),
+#       # dangle
+#       Edge(5, 1, 5, 1, 1, LineString([(0, 0), (1,1)])),
+#       Edge(6, 3, 6, 1, 1, LineString([(3, 2), (2,1)])),           
+#       ],
+#      [
+#       # loop
+#       Edge(1, 1, 2, 1, 0, LineString([(0, 0), (3, 0)])),
+#       Edge(2, 2, 3, 1, 0, LineString([(3, 0), (3, 2)])),
+#       Edge(3, 3, 4, 1, 0, LineString([(3, 2), (0, 2)])),
+#       Edge(4, 4, 1, 1, 0, LineString([(0, 2), (0, 0)])),
+#       # dangle
+#       Edge(5, 1, 5, 1, 1, LineString([(0, 0), (1,1)])),
+#       Edge(6, 5, 6, 1, 1, LineString([(1,1), (1, 1.5)])),
+#       Edge(7, 5, 7, 1, 1, LineString([(1,1), (1.5, 1)]))
+#       #Edge(6, 3, 6, 1, 1, LineString([(3, 2), (2,1)])),           
+#       ],
+     [
+      # loop
+      Edge( 1, 1, 2, 1, 0, LineString([(0, 0), (3, 0)])),
+      Edge( 2, 2, 3, 1, 0, LineString([(3, 0), (3, 2)])),
+      Edge( 3, 3, 4, 1, 0, LineString([(3, 2), (0, 2)])),
+      Edge( 4, 4, 1, 1, 0, LineString([(0, 2), (0, 0)])),
+      
+      Edge( 5, 1, 5, 1, 2, LineString([(0,0), (1,1.5), (1.5, 1.5)]) ),
+      Edge( 6, 5, 1, 1, 2, LineString([(1.5, 1.5), (0,0)]) ),
+      
+      Edge( 7, 5, 6, 1, 3, LineString([(1.5, 1.5), (1.25, 1.8), (1.5, 1.8)]) ),
+      Edge( 8, 6, 5, 1, 3, LineString([(1.5, 1.8), (1.5, 1.5)]) ),
+      Edge( 9, 5, 7, 1, 4, LineString([(1.5, 1.5), (2, 1.5), (2, 0.5)]) ),
+      Edge(10, 7, 5, 1, 4, LineString([(2, 0.5), (1.5, 1.5)]) )
+      ]  
 ]
 faces = [
-    [Face(1, 1)]
-    ,
-    [Face(1, 1)]
-    ,
-    [Face(1, 1)]
-    ,
+#     [Face(1, 1)]
+#     ,
+#     [Face(1, 1)]
+#     ,
+#     [Face(1, 1)]
+#     ,
+#     [Face(1, 1),
+#      Face(2, 1)],
+#     [Face(1, 1),
+#      Face(2, 1),
+#      Face(3, 1),
+#      ]
+#     ,
+#     [Face(1, 1)]
+# ,
+#     [Face(1, 1)]
+#     ,
     [Face(1, 1),
-     Face(2, 1)
+     Face(2, 1),
      ]
 ]
 
@@ -73,6 +126,9 @@ def topomap(edges, faces):
 
 fixtures = []
 for e, f in zip(edges, faces):
+    for edge in e:
+        print edge.geometry
+    
     tm = topomap(e, f)
     fixtures.append(tm)
 
@@ -83,7 +139,8 @@ for fixture in fixtures:
         for loop in fixture.faces[face_id].loops:
             geometries.extend( [geom for geom in loop.geometry] )
         for geom in geometries:
-            print type(geom), geom
+#             print type(geom), 
+            print geom
 #         nrs = [len(geom) for geom in geometries]
 #         nrs.sort()
 #         assert nrs == [2, 2, 5]

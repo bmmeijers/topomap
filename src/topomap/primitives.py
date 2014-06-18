@@ -218,6 +218,9 @@ class Node(object):
             yield ccw_he
             ccw_he = ccw_he.prev.twin
 
+def is_even(n):
+    return (n % 2) == 0
+
 class Loop(object):
     """Loop class -- A loop is a set of HalfEdges along a Face boundary
     """
@@ -292,98 +295,128 @@ class Loop(object):
             nodes = set() 
             tangent_nodes = set()
             stack = []
-            edge_seen = set()
+            visit_count = {}
             for edge in self.half_edges:
                 if edge.origin not in nodes:
                     nodes.add(edge.origin)
                 else:
                     tangent_nodes.add(edge.origin)
+                    if edge.origin not in visit_count:
+                        visit_count[edge.origin] = 1
+                    visit_count[edge.origin] += 1
+            print visit_count
             if tangent_nodes:
                 rings = []
+                print "start"
                 ring = LineString()
                 first = True
                 start_node = None
                 end_node = None
-                is_collapsed = False
                 for edge in self.half_edges:
-                    if edge.id not in edge_seen:
-                        edge_seen.add(edge.id)
+                    print "now at", edge.id
+                    if edge.anchor is not None:
+                        geom = edge.anchor.geometry
+                        step = 1
                     else:
-                        is_collapsed = True
-                    if not is_collapsed:
-                        if edge.anchor is not None:
-                            geom = edge.anchor.geometry
-                            step = 1
+                        geom = edge.twin.anchor.geometry
+                        step = -1
+                    if first:
+                        s = slice(None, None, step)
+                        first = False
+                    else:
+                        if step == -1:
+                            s = slice(-2, None, step)
                         else:
-                            geom = edge.twin.anchor.geometry
-                            step = -1
-                        if first:
-                            s = slice(None, None, step)
-                            first = False
-                        else:
-                            if step == -1:
-                                s = slice(-2, None, step)
-                            else:
-                                assert step == 1
-                                s = slice(1, None, step)
-                        ring.extend(geom, s)
+                            assert step == 1
+                            s = slice(1, None, step)
+                    ring.extend(geom, s)
                     if start_node is None:
                         start_node = edge.origin
                     end_node = edge.twin.origin
-                    if edge.twin.origin in tangent_nodes:
-                        if start_node is not end_node:
+
+                    if end_node in tangent_nodes:
+                        print "old visit count for node", end_node.id, "=", visit_count[end_node], "loops left to make", visit_count[end_node]-1 #, is_even(visit_count[end_node])
+                        visit_count[end_node] -= 1
+                        
+                        # 3 cases:
+                        #  stack what was made and open new one
+                        #  finish what was made and open new one
+                        #  finish what was made and continue previous one
+                        
+                        if start_node is end_node:
+                            # finish was what made
+                            rings.append(ring)
+                            loops_to_make = visit_count[end_node]
+                            if loops_to_make > 0:
+                                # open new one
+                                start_node = None
+                                end_node = None
+                                ring = LineString()
+                                first = True
+                            elif stack:
+                                # continue previous one
+                                ring, start_node = stack.pop()
+                                first = False
+                            else:
+                                # open new one
+                                start_node = None
+                                end_node = None
+                                ring = LineString()
+                                first = True
+                        else:
+                            # stack what was made and open new one
+                            print "start"
                             stack.append( (ring, start_node) )
+                            print "pushing"
                             start_node = None
                             end_node = None
                             ring = LineString()
                             first = True
-                        else: 
-                            if is_collapsed:
-                                rings.append(ring)
-                                is_collapsed = False
-                            else:
-                                rings.append(LinearRing(ring))
-                            if stack:
-                                ring, start_node = stack.pop()
-                                first = False
-                            else:
-                                ring = LineString()
-                                first = True
+                        
+#                         if loops_to_make > 0:
+#                             print "start"
+#                             stack.append( (ring, start_node) )
+#                             print "pushing"
+#                             start_node = None
+#                             end_node = None
+#                             ring = LineString()
+#                             first = True
+#                         else:
+#                             assert end_node is start_node
+#                             print "storing", ring
+#                             print "popping"
+#                             rings.append(ring)
+#                             ring, start_node = stack.pop()
+#                             first = False
                 if len(ring):
+                    print "storing remnant", ring
+                    assert start_node is end_node
                     rings.append(ring)
+                # postcondition: stack should be empty now
+                assert not stack, "stack should be empty now"
                 self.linear_rings = rings
             else:
-                ring = LineString()
+                ring = LinearRing()
                 first = True
-                edge_seen = set()
-                is_collapsed = False
                 for edge in self.half_edges:
-                    if edge.id in edge_seen:
-                        is_collapsed = True
-                        continue
+                    if edge.anchor is not None:
+                        geom = edge.anchor.geometry
+                        step = 1
                     else:
-                        edge_seen.add(edge.id)
-                        if edge.anchor is not None:
-                            geom = edge.anchor.geometry
-                            step = 1
+                        geom = edge.twin.anchor.geometry
+                        step = -1
+                    if first:
+                        s = slice(None, None, step)
+                        first = False
+                    else:
+                        if step == -1:
+                            s = slice(-2, None, step)
                         else:
-                            geom = edge.twin.anchor.geometry
-                            step = -1
-                        if first:
-                            s = slice(None, None, step)
-                            first = False
-                        else:
-                            if step == -1:
-                                s = slice(-2, None, step)
-                            else:
-                                assert step == 1
-                                s = slice(1, None, step)
+                            assert step == 1
+                            s = slice(1, None, step)
 #                    extend_slice(ring, geom, s)
                     ring.extend(geom, s)
-                if is_collapsed:
-                    self.linear_rings = [ring]
-                else:
-                    self.linear_rings = [LinearRing(ring)]
+                self.linear_rings = [ring]
                 
 ##            Expensive checks!
 #            for ring in self.linear_rings:
