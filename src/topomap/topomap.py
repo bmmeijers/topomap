@@ -193,6 +193,7 @@ class LoopFactory(object):
             topomap.label_half_edges(INIT)
             half_edges = topomap.half_edges.itervalues()
         for item in half_edges:
+
             for edge in (item, item.twin):
                 if edge.label == VISITED:
                     continue
@@ -218,6 +219,9 @@ class LoopFactory(object):
                         edge = edge.next
                         if edge is start:
                             break
+#            print item
+#            print "edge", edge
+#            raw_input("press button")
 
     @classmethod
     def find_clipped_loops(cls, topomap, half_edges = None):
