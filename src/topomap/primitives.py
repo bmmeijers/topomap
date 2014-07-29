@@ -75,6 +75,7 @@ class Face(object):
     def half_edges(self):
         """HalfEdges having a relation with this face
         """
+        assert len(self.loops) > 0
         for loop in self.loops:
             for edge in loop.half_edges:
                 yield edge
@@ -85,6 +86,7 @@ class Face(object):
         neighbouring face -> set of edge 
         (boundary between, this edge lies on interior of *this* face)
         """
+        #this doesn't work for universe
         neighbours = {}
         for loop in self.loops:
             for edge in loop.half_edges:
@@ -93,6 +95,23 @@ class Face(object):
                 neighbours[edge.twin.face].add(edge)
         return neighbours
 
+    @property
+    def neighbours_no_same_face(self):
+        """Returns dictionary with:
+        neighbouring face -> set of edge 
+        (boundary between, this edge lies on interior of *this* face)
+        eliminate empty cycles
+        """
+        #this doesn't work for universe
+        neighbours = {}
+        assert len(self.loops) > 0
+        for loop in self.loops:
+            for edge in loop.half_edges:
+                if edge.face.id <> edge.twin.face.id:
+                    if edge.twin.face not in neighbours:
+                        neighbours[edge.twin.face] = set()
+                    neighbours[edge.twin.face].add(edge)
+        return neighbours
 
 class Anchorage(object):
     """Container for attributes (dictionary)
@@ -299,6 +318,7 @@ class Loop(object):
             stack = []
             visit_count = {}
             for edge in self.half_edges:
+                #print edge.id, "origin", edge.origin, "face", edge.face
                 if edge.origin not in nodes:
                     nodes.add(edge.origin)
                 else:
@@ -306,6 +326,7 @@ class Loop(object):
                     if edge.origin not in visit_count:
                         visit_count[edge.origin] = 1
                     visit_count[edge.origin] += 1
+                ring_is_flat = edge.twin.face is edge.face
             if tangent_nodes:
                 rings = []
                 linestrings = []
@@ -342,8 +363,7 @@ class Loop(object):
                     end_node = edge.twin.origin
 
                     if end_node in tangent_nodes:
-                        visit_count[end_node] -= 1
-                        
+                        visit_count[end_node] -= 1                        
                         # 3 cases:
                         #  stack what was made and open new one
                         #  finish what was made and open new one
@@ -392,34 +412,50 @@ class Loop(object):
                 self.linear_rings = rings
                 self.linestrings = linestrings
             else:
-                ring = LinearRing()
+                ring = LineString()
                 first = True
+                edge_seen = set()                      
+                # No tangent node but some edge is still dead ends then whole cycle is empty. 
+                #      _______
+                #     /       \
+                #    |  ---    |
+                #     \_______/
+                #
                 for edge in self.half_edges:
-                    if edge.anchor is not None:
-                        geom = edge.anchor.geometry
-                        step = 1
-                    else:
-                        geom = edge.twin.anchor.geometry
-                        step = -1
-                    if first:
-                        s = slice(None, None, step)
-                        first = False
-                    else:
-                        if step == -1:
-                            s = slice(-2, None, step)
+                    if not edge.id in edge_seen:
+                        if edge.anchor is not None:
+                            geom = edge.anchor.geometry
+                            step = 1
                         else:
-                            assert step == 1
-                            s = slice(1, None, step)
-#                    extend_slice(ring, geom, s)
-                    ring.extend(geom, s)
-                self.linear_rings = [ring]
-                
+                            geom = edge.twin.anchor.geometry
+                            step = -1
+                        if first:
+                            s = slice(None, None, step)
+                            first = False
+                        else:
+                            if step == -1:
+                                s = slice(-2, None, step)
+                            else:
+                                assert step == 1
+                                s = slice(1, None, step)
+                        ring.extend(geom, s)
+                        if ring_is_flat:
+                            edge_seen.add(edge.id)
+                            
+                if ring_is_flat:
+                    print "ring inside is flat"
+                    self.linestrings = [ring]
+                else:
+                    self.linear_rings = [LinearRing(ring)]       
+                    
+
 ##            Expensive checks!
 #            for ring in self.linear_rings:
 #                assert is_linearring(ring)
 #                assert is_ring_simple(ring)
                 
         return self.linear_rings, self.linestrings
+
 
 class HalfEdge(object):
     """HalfEdge class
@@ -504,8 +540,10 @@ class HalfEdge(object):
         """Returns Node at start of this HalfEdge
         """
         if self.anchor:
+            assert self.origin.geometry == self.anchor.geometry[0]
             return self.origin
         else:
+            assert self.twin.origin.geometry == self.twin.anchor.geometry[0]
             return self.twin.origin
  
     @property
@@ -513,8 +551,10 @@ class HalfEdge(object):
         """Returns Node at end of this HalfEdge
         """
         if self.anchor:
+            assert self.twin.origin.geometry == self.anchor.geometry[-1]
             return self.twin.origin
         else:
+            assert self.origin.geometry == self.twin.anchor.geometry[-1]
             return self.origin
  
     @property
@@ -568,10 +608,19 @@ class PolygonizeFactory(object):
             return []
         #compute area and copy rings
         for loop in face.loops:
-            for ring in loop.geometry[0]:
-                ring_area = ring.signed_area()
-                face.rings.append((ring_area, ring, loop))
-                area += ring_area                
+            loop.geometry[0]
+            try:
+                assert loop.linear_rings or loop.linestrings
+            except AssertionError:
+                log.warning('Error in loop of face {0} -- no rings nor linestrings in this loop'.format(face.id))
+                return []
+            if loop.linear_rings:
+                for ring in loop.geometry[0]:
+                    ring_area = ring.signed_area()
+                    face.rings.append((ring_area, ring, loop))
+                    area += ring_area 
+            else:
+                assert loop.linestrings  
             #copy collapsed cycles   
             if loop.linestrings: 
                 face.linestrings.extend(loop.linestrings)                            

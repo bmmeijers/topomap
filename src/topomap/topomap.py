@@ -108,10 +108,14 @@ class TopoMap(object):
         he0 = self.half_edges[edge_id]
         he1 = he0.twin
         # set pointers to this HalfEdge to zero, if they exist
-        if he0.loop:
-            he0.loop.remove_he(he0)
-        if he1.loop:
-            he1.loop.remove_he(he1)
+        for H in (he0, he1):
+            if H.loop:
+                #print "h.loop remove", H.loop
+                H.face.loops.remove(H.loop)
+                hes = [he for he in H.loop.half_edges]
+                for h in hes:
+                    h.loop.remove_he(h)
+                    h.loop = None
 
         start_node = he0.origin
         end_node = he1.origin
@@ -192,17 +196,20 @@ class LoopFactory(object):
         if not half_edges:
             topomap.label_half_edges(INIT)
             half_edges = topomap.half_edges.itervalues()
-        for item in half_edges:
-
+        print
+        for item in half_edges:            
+            print "find loop", item.id, item.face, item.label, "twin", item.twin.id, item.twin.face, item.twin.label
             for edge in (item, item.twin):
                 if edge.label == VISITED:
                     continue
                 else:
                     start = edge
+                    print "find loop, start", start.id
                     loop = Loop(start)
                     start.face.loops.append(loop)
                     guard = 0
                     while True:
+                        print "find loop, he", edge.id, edge.face, edge.label
                         guard += 1
                         if guard > 500000:
                             raise Exception('Too much iteration for {0}, started at {1}'.format(start.face, start))
