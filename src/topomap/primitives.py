@@ -275,6 +275,7 @@ class Loop(object):
         if edge is self.start:
             self.start = None
         self.linear_rings = None
+        self.linestrings = None
 
     @property
     def half_edges(self):
