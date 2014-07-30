@@ -109,15 +109,18 @@ class TopoMap(object):
         he1 = he0.twin
         # set pointers to this HalfEdge to zero, if they exist
         for H in (he0, he1):
+#            print "H", H.id, H.label
             if H.loop:
-                #print "h.loop remove", H.loop
+#                print "h.loop remove from face", H.loop
                 H.face.loops.remove(H.loop)
                 hes = [he for he in H.loop.half_edges]
                 for h in hes:
+#                    print "    h of hes", h.id, h.label
                     h.loop.remove_he(h)
                     h.loop = None
                     # do not interfere with already set labels
                     if h.label == VISITED:
+#                        print "remove_he, change label for he", he.id
                         h.label = INIT
                 #H.loop.blank()
 

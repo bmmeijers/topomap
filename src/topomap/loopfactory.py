@@ -7,40 +7,39 @@ from primitives import Loop
 
 INIT = 0
 VISITED = 1
-MERGE = 2
-DEADEND = 4
-# OTHER = 8
+
 
 def find_loops_partly(tm):
     """Finds loop objects, starting on half_edges labeled as 
     INIT
     """
-    visit = []
+    visit = set()
     for he in tm.half_edges.itervalues():
-        if he.label == INIT:
-            visit.append(he)
+        for h in (he, he.twin):
+            if h.label == INIT:  
+                visit.add(h)  
     find_loops(tm, visit)
 
 def find_loops(topomap, half_edges = None):
     """Find all Loop objects for a TopoMap 
     and adds them to the Face they belong to"""
-    if not half_edges:
+    if half_edges is None:
         topomap.label_half_edges(INIT)
         half_edges = topomap.half_edges.itervalues()
     print
     for item in half_edges:            
-        print "find loop", item.id, item.face, item.label, "twin", item.twin.id, item.twin.face, item.twin.label
+#        print "find loop", item.id, item.face, item.label, "twin", item.twin.id, item.twin.face, item.twin.label
         for edge in (item, item.twin):
             if edge.label == VISITED:
                 continue
             else:
                 start = edge
-                print "find loop, start", start.id
+#                print "find loop, start", start.id
                 loop = Loop(start)
                 start.face.loops.append(loop)
                 guard = 0
                 while True:
-                    print "find loop, he", edge.id, edge.face, edge.label
+#                    print "find loop, he", edge.id, edge.face, edge.label
                     guard += 1
                     if guard > 500000:
                         raise Exception('Too much iteration for {0}, started at {1}'.format(start.face, start))
