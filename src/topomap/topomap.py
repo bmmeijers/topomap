@@ -11,8 +11,7 @@ INIT = 0
 VISITED = 1
 
 class TopoMap(object):
-    """Class that represents a topology structure based on HalfEdges 
-    (DCEL like).
+    """Class that represents a topology structure based on HalfEdges (DCEL like).
     """
     def __init__(self, universe_id = 0, srid = -1):
         self.srid = srid
@@ -20,7 +19,7 @@ class TopoMap(object):
         self.faces = {}
         self.half_edges = {}
         self.nodes = {}
-        self.add_face(universe_id, unbounded = True)
+        self.add_face(universe_id, unbounded = True, attrs = {'locked': False})
 
     def add_face(self, face_id, attrs = None, unbounded = False):
         """Adds a Face to the TopoMap

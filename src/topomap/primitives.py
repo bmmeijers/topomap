@@ -623,7 +623,7 @@ class PolygonizeFactory(object):
             else:
                 assert loop.linestrings  
             #copy collapsed cycles   
-            if loop.linestrings: 
+            #if loop.linestrings: 
                 face.linestrings.extend(loop.linestrings)                            
         face.area = area
 

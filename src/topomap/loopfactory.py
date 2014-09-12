@@ -18,6 +18,11 @@ def find_loops_partly(tm):
         for h in (he, he.twin):
             if h.label == INIT:  
                 visit.add(h)  
+#                
+#    with open(r"d:\A07_visit.wkt", "w") as fh:
+#        fh.write("id; label; geometry\n")
+#        for he in visit:
+#            fh.write("{H.id};{H.label};{H.geometry}\n".format(H=he))            
     find_loops(tm, visit)
 
 def find_loops(topomap, half_edges = None):
@@ -30,10 +35,12 @@ def find_loops(topomap, half_edges = None):
     for item in half_edges:            
 #        print "find loop", item.id, item.face, item.label, "twin", item.twin.id, item.twin.face, item.twin.label
         for edge in (item, item.twin):
+#            print "edge", edge.id, edge.face, edge.label
             if edge.label == VISITED:
                 continue
             else:
                 start = edge
+                assert start.face.attrs['locked'] == False
 #                print "find loop, start", start.id
                 loop = Loop(start)
                 start.face.loops.append(loop)
