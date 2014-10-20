@@ -444,7 +444,7 @@ class Loop(object):
                             edge_seen.add(edge.id)
                             
                 if ring_is_flat:
-                    print "ring inside is flat"
+#                    print "ring inside is flat"
                     self.linestrings = [ring]
                 else:
                     self.linear_rings = [LinearRing(ring)]       

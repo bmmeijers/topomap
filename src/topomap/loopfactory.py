@@ -31,7 +31,7 @@ def find_loops(topomap, half_edges = None):
     if half_edges is None:
         topomap.label_half_edges(INIT)
         half_edges = topomap.half_edges.itervalues()
-    print
+
     for item in half_edges:            
 #        print "find loop", item.id, item.face, item.label, "twin", item.twin.id, item.twin.face, item.twin.label
         for edge in (item, item.twin):
