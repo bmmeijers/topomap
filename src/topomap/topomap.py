@@ -7,8 +7,8 @@ from primitives import angle
 
 #log = logging.getLogger(__name__)
 
-INIT = False
-VISITED = True
+INIT = 0
+VISITED = 1
 
 class TopoMap(object):
     """Class that represents a topology structure based on HalfEdges 
@@ -20,7 +20,7 @@ class TopoMap(object):
         self.faces = {}
         self.half_edges = {}
         self.nodes = {}
-        self.add_face(universe_id, unbounded = True)
+        self.add_face(universe_id, unbounded = True, attrs = {'locked': False})
 
     def add_face(self, face_id, attrs = None, unbounded = False):
         """Adds a Face to the TopoMap
@@ -108,10 +108,15 @@ class TopoMap(object):
         he0 = self.half_edges[edge_id]
         he1 = he0.twin
         # set pointers to this HalfEdge to zero, if they exist
-        if he0.loop:
-            he0.loop.remove_he(he0)
-        if he1.loop:
-            he1.loop.remove_he(he1)
+        for H in (he0, he1):
+            if H.loop:
+                H.face.loops.remove(H.loop)
+                hes = [he for he in H.loop.half_edges]
+                for h in hes:
+                    h.loop.remove_he(h)
+                    h.loop = None
+                    if h.label == VISITED:
+                        h.label = INIT
 
         start_node = he0.origin
         end_node = he1.origin
