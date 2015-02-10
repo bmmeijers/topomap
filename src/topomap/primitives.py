@@ -304,8 +304,10 @@ class Loop(object):
                     if edge.origin not in visit_count:
                         visit_count[edge.origin] = 1
                     visit_count[edge.origin] += 1
+                ring_is_flat = edge.twin.face is edge.face
             if tangent_nodes:
                 rings = []
+                linestrings = []
                 ring = LineString()
                 first = True
                 start_node = None
@@ -339,8 +341,7 @@ class Loop(object):
                     end_node = edge.twin.origin
 
                     if end_node in tangent_nodes:
-                        visit_count[end_node] -= 1
-                        
+                        visit_count[end_node] -= 1                        
                         # 3 cases:
                         #  stack what was made and open new one
                         #  finish what was made and open new one
@@ -348,7 +349,7 @@ class Loop(object):
                         if start_node is end_node:
                             # finish was what made
                             if is_flat:
-                                pass
+                                linestrings.append(ring)
                             else:
                                 rings.append(LinearRing(ring))
                             loops_to_make = visit_count[end_node]
@@ -381,7 +382,7 @@ class Loop(object):
                 if len(ring):
                     assert start_node is end_node
                     if is_flat:
-                        pass
+                        linestrings.append(ring)
                     else:
                         rings.append(LinearRing(ring))
                 # postcondition: stack should be empty now
