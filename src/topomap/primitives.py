@@ -28,7 +28,7 @@ def angle(p1, p2):
 
 class Face(object):
     """Face"""
-    __slots__ = ('id', 'unbounded', 'attrs', 'loops', 'rings', 'area')
+    __slots__ = ('id', 'unbounded', 'attrs', 'loops', 'rings', 'linestrings', 'area')
     
     def __init__(self, face_id, attrs, unbounded):
         self.id = face_id
@@ -37,6 +37,7 @@ class Face(object):
 
         self.loops = []
         self.rings = []
+        self.linestrings = []
         self.area = 0.
 
     def blank(self):
@@ -67,12 +68,14 @@ class Face(object):
         This is a list, because a face can become a multi-part geometry 
         after the clipping operation
         """
+        #return PolygonizeFactory.face_to_geometry(self, srid=srid)
         return PolygonizeFactory.face_to_geometry(self, srid=srid)
-
+    
     @property
     def half_edges(self):
         """HalfEdges having a relation with this face
         """
+        assert len(self.loops) > 0
         for loop in self.loops:
             for edge in loop.half_edges:
                 yield edge
@@ -83,6 +86,7 @@ class Face(object):
         neighbouring face -> set of edge 
         (boundary between, this edge lies on interior of *this* face)
         """
+        #this doesn't work for universe
         neighbours = {}
         for loop in self.loops:
             for edge in loop.half_edges:
@@ -91,6 +95,23 @@ class Face(object):
                 neighbours[edge.twin.face].add(edge)
         return neighbours
 
+    @property
+    def neighbours_no_same_face(self):
+        """Returns dictionary with:
+        neighbouring face -> set of edge 
+        (boundary between, this edge lies on interior of *this* face)
+        eliminate empty cycles
+        """
+        #this doesn't work for universe
+        neighbours = {}
+        assert len(self.loops) > 0
+        for loop in self.loops:
+            for edge in loop.half_edges:
+                if edge.face.id <> edge.twin.face.id:
+                    if edge.twin.face not in neighbours:
+                        neighbours[edge.twin.face] = set()
+                    neighbours[edge.twin.face].add(edge)
+        return neighbours
 
 class Anchorage(object):
     """Container for attributes (dictionary)
@@ -218,18 +239,16 @@ class Node(object):
             yield ccw_he
             ccw_he = ccw_he.prev.twin
 
-def is_even(n):
-    return (n % 2) == 0
-
 class Loop(object):
     """Loop class -- A loop is a set of HalfEdges along a Face boundary
     """
     
-    __slots__ = ('start', 'linear_rings')
+    __slots__ = ('start', 'linear_rings', 'linestrings')
     
     def __init__(self, edge):
         self.start = edge
         self.linear_rings = None
+        self.linestrings = None
     
     def __str__(self):
         try:
@@ -248,6 +267,7 @@ class Loop(object):
         """
         self.start = None
         self.linear_rings = None
+        self.linestrings = None
 
     def remove_he(self, edge):
         """Removes HalfEdge from this Loop if *edge* is *self.start*
@@ -255,6 +275,7 @@ class Loop(object):
         if edge is self.start:
             self.start = None
         self.linear_rings = None
+        self.linestrings = None
 
     @property
     def half_edges(self):
@@ -279,6 +300,7 @@ class Loop(object):
         """Empty cache of geometry
         """
         self.linear_rings = None
+        self.linestrings = None
     
     @property
     def geometry(self):
@@ -297,6 +319,7 @@ class Loop(object):
             stack = []
             visit_count = {}
             for edge in self.half_edges:
+                #print edge.id, "origin", edge.origin, "face", edge.face
                 if edge.origin not in nodes:
                     nodes.add(edge.origin)
                 else:
@@ -312,7 +335,7 @@ class Loop(object):
                 first = True
                 start_node = None
                 end_node = None
-                edge_seen = set()
+                edge_seen = set()                
                 for edge in self.half_edges:
                     is_flat = edge.twin.face is edge.face
                     if not edge.id in edge_seen:
@@ -388,35 +411,52 @@ class Loop(object):
                 # postcondition: stack should be empty now
                 assert not stack, "stack should be empty now"
                 self.linear_rings = rings
+                self.linestrings = linestrings
             else:
-                ring = LinearRing()
+                ring = LineString()
                 first = True
+                edge_seen = set()                      
+                # No tangent node but some edge is still dead ends then whole cycle is empty. 
+                #      _______
+                #     /       \
+                #    |  ---    |
+                #     \_______/
+                #
                 for edge in self.half_edges:
-                    if edge.anchor is not None:
-                        geom = edge.anchor.geometry
-                        step = 1
-                    else:
-                        geom = edge.twin.anchor.geometry
-                        step = -1
-                    if first:
-                        s = slice(None, None, step)
-                        first = False
-                    else:
-                        if step == -1:
-                            s = slice(-2, None, step)
+                    if not edge.id in edge_seen:
+                        if edge.anchor is not None:
+                            geom = edge.anchor.geometry
+                            step = 1
                         else:
-                            assert step == 1
-                            s = slice(1, None, step)
-#                    extend_slice(ring, geom, s)
-                    ring.extend(geom, s)
-                self.linear_rings = [ring]
-                
+                            geom = edge.twin.anchor.geometry
+                            step = -1
+                        if first:
+                            s = slice(None, None, step)
+                            first = False
+                        else:
+                            if step == -1:
+                                s = slice(-2, None, step)
+                            else:
+                                assert step == 1
+                                s = slice(1, None, step)
+                        ring.extend(geom, s)
+                        if ring_is_flat:
+                            edge_seen.add(edge.id)
+                            
+                if ring_is_flat:
+#                    print "ring inside is flat"
+                    self.linestrings = [ring]
+                else:
+                    self.linear_rings = [LinearRing(ring)]       
+                    
+
 ##            Expensive checks!
 #            for ring in self.linear_rings:
 #                assert is_linearring(ring)
 #                assert is_ring_simple(ring)
                 
-        return self.linear_rings
+        return self.linear_rings, self.linestrings
+
 
 class HalfEdge(object):
     """HalfEdge class
@@ -501,8 +541,10 @@ class HalfEdge(object):
         """Returns Node at start of this HalfEdge
         """
         if self.anchor:
+            assert self.origin.geometry == self.anchor.geometry[0]
             return self.origin
         else:
+            assert self.twin.origin.geometry == self.twin.anchor.geometry[0]
             return self.twin.origin
  
     @property
@@ -510,8 +552,10 @@ class HalfEdge(object):
         """Returns Node at end of this HalfEdge
         """
         if self.anchor:
+            assert self.twin.origin.geometry == self.anchor.geometry[-1]
             return self.twin.origin
         else:
+            assert self.origin.geometry == self.twin.anchor.geometry[-1]
             return self.origin
  
     @property
@@ -547,27 +591,42 @@ class PolygonizeFactory(object):
     """
     def __init__(self):
         pass
-    
+
     @classmethod
     def face_to_geometry(cls, face, srid = 0):
         """Returns a list of geometries for this face
         
         This is a list, because a face can become a multi-part geometry 
-        after the clipping operation
+        after the clipping operation or contain lose or dangling edges
         """
         face.rings = []
-        area = 0.
+        face.linestrings = []
+        area = 0.        
         try:
             assert len(face.loops) > 0
         except AssertionError:
             log.warning('Error in face {0} -- no loops for this face'.format(face.id))
             return []
+        #compute area and copy rings
         for loop in face.loops:
-            for ring in loop.geometry:
-                ring_area = ring.signed_area()
-                face.rings.append((ring_area, ring, loop))
-                area += ring_area
+            loop.geometry[0]
+            try:
+                assert loop.linear_rings or loop.linestrings
+            except AssertionError:
+                log.warning('Error in loop of face {0} -- no rings nor linestrings in this loop'.format(face.id))
+                return []
+            if loop.linear_rings:
+                for ring in loop.geometry[0]:
+                    ring_area = ring.signed_area()
+                    face.rings.append((ring_area, ring, loop))
+                    area += ring_area 
+            else:
+                assert loop.linestrings  
+            #copy collapsed cycles   
+            #if loop.linestrings: 
+                face.linestrings.extend(loop.linestrings)                            
         face.area = area
+
 
         # qa on ring sizes 
         # -> inner have negative area
@@ -651,8 +710,9 @@ class PolygonizeFactory(object):
                         poly.append(iring)
                         break
                 # if for loop did not break, we did not find suitable candidate
-                else: 
-                    raise ValueError('No suitable outer ring found for inner ring {0}'.format(iring))
+                else:                     
+                    if face.unbounded is not True:
+                        raise ValueError('No suitable outer ring found for inner ring {0}'.format(iring))
 #                        print "No suitable outer ring found for inner ring in face", face.id
-        return parts
-        
+
+        return parts        
