@@ -10,18 +10,14 @@ VISITED = 1
 
 
 def find_loops_partly(tm):
+    # FIXME: this is not any more efficient, then just calling find_loops
+    # as in find_loops the edge.loop is checked as well for starting
     """Finds loop objects, starting on half_edges without loop"""
     visit = set()
     for he in tm.half_edges.itervalues():
         for h in (he, he.twin):
             if h.loop is None:
                 visit.add(h)  
-#                
-#    with open(r"d:\A07_visit.wkt", "w") as fh:
-#        fh.write("id; label; geometry\n")
-#        for he in visit:
-#            fh.write("{H.id};{H.label};{H.geometry}\n".format(H=he)) 
-                       
     find_loops(tm, visit)
 
 def find_loops(topomap, half_edges = None):
@@ -36,7 +32,7 @@ def find_loops(topomap, half_edges = None):
                 continue
             else:
                 start = edge
-                assert start.face.attrs['locked'] == False
+#                 assert start.face.attrs['locked'] == False
                 loop = Loop(start)
                 start.face.loops.append(loop)
                 guard = 0

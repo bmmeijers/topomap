@@ -335,7 +335,7 @@ class Loop(object):
                 first = True
                 start_node = None
                 end_node = None
-                edge_seen = set()                
+                edge_seen = set()
                 for edge in self.half_edges:
                     is_flat = edge.twin.face is edge.face
                     if not edge.id in edge_seen:
@@ -364,7 +364,7 @@ class Loop(object):
                     end_node = edge.twin.origin
 
                     if end_node in tangent_nodes:
-                        visit_count[end_node] -= 1                        
+                        visit_count[end_node] -= 1
                         # 3 cases:
                         #  stack what was made and open new one
                         #  finish what was made and open new one
@@ -415,7 +415,7 @@ class Loop(object):
             else:
                 ring = LineString()
                 first = True
-                edge_seen = set()                      
+                edge_seen = set()
                 # No tangent node but some edge is still dead ends then whole cycle is empty. 
                 #      _______
                 #     /       \
@@ -442,47 +442,40 @@ class Loop(object):
                         ring.extend(geom, s)
                         if ring_is_flat:
                             edge_seen.add(edge.id)
-                            
                 if ring_is_flat:
 #                    print "ring inside is flat"
                     self.linestrings = [ring]
                 else:
-                    self.linear_rings = [LinearRing(ring)]       
-                    
+                    self.linear_rings = [LinearRing(ring)]
 
 ##            Expensive checks!
 #            for ring in self.linear_rings:
 #                assert is_linearring(ring)
 #                assert is_ring_simple(ring)
-                
+
         return self.linear_rings, self.linestrings
 
 
 class HalfEdge(object):
     """HalfEdge class
     """
-    
     __slots__ = ('anchor', 
                  'twin', 
                  'origin', 'angle', 
                  'prev', 'next', 
                  'loop', 'face', 'label')
-    
+
     def __init__(self, anchor = None):
         self.anchor = anchor
         self.twin = None
-        
         self.origin = None
         self.angle = None
-        
         self.prev = None
         self.next = None
-        
         self.loop = None
         self.face = None
-        
         self.label = None
-        
+
     @property
     def id(self):
         """Global identifier of this HalfEdge
@@ -595,7 +588,7 @@ class PolygonizeFactory(object):
     @classmethod
     def face_to_geometry(cls, face, srid = 0):
         """Returns a list of geometries for this face
-        
+
         This is a list, because a face can become a multi-part geometry 
         after the clipping operation or contain lose or dangling edges
         """
@@ -624,14 +617,16 @@ class PolygonizeFactory(object):
                 assert loop.linestrings  
             #copy collapsed cycles   
             #if loop.linestrings: 
-                face.linestrings.extend(loop.linestrings)                            
+                face.linestrings.extend(loop.linestrings)
         face.area = area
-
 
         # qa on ring sizes 
         # -> inner have negative area
         # -> outer have positive area
         # -> degenerate have no area
+
+        # FIXME: is it possible that a face has only line strings ???
+        # e.g. universe with only loose-lying segments
         try:
             assert len(face.rings) > 0
         except AssertionError:

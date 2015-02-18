@@ -8,7 +8,8 @@ from simplegeom.wkb import dumps
 from connection import ConnectionFactory
 #register()
 
-from topomap import TopoMap, LoopFactory
+from topomap import TopoMap
+from loopfactory import find_loops
 from clipper import EdgeClipper
 import warnings
 
@@ -115,8 +116,109 @@ class TopoMapFactory(object):
                               start_node_id, end_node_id,
                               left_face_id, right_face_id,
                               geometry)
-        LoopFactory.find_loops(topo_map)
+        find_loops(topo_map)
         return topo_map
+
+
+    @classmethod
+    def topo_map_not_locked(cls, name, 
+                 universe_id = None, srid = None, 
+                 attribute_mapping = None,
+                 where = None):
+        """Retrieves all Nodes, Edges, Faces for TopoMap ``name``
+        """
+        connection = ConnectionFactory.connection(True)
+        universe_id = universe_id
+        srid = srid
+        name = name
+        # TODO: get universe / srid from metadata if not given
+        assert universe_id is not None
+        assert srid is not None
+        topo_map = TopoMap(universe_id = universe_id, srid = srid)
+        
+        if attribute_mapping is not None:
+            # faces
+            sql = """SELECT 
+                {1[face_id]}::int,
+                {1[feature_class]}::int 
+            FROM
+                {0}_face
+            """.format(name, attribute_mapping)
+        else:
+            # faces
+            sql = """SELECT 
+                face_id::int,
+                feature_class::int 
+            FROM
+                {0}_face
+                """.format(name)
+        if where is not None:
+            sql += where
+        for face_id, feature_class, in connection.irecordset(sql):
+            assert face_id is not None
+            topo_map.add_face(face_id, 
+                              attrs = {'feature_class': feature_class, 'locked': False})
+        
+        logging.debug(sql)
+        
+        if attribute_mapping is not None:
+            # faces
+            sql = """SELECT 
+                {1[edge_id]}::int,
+                {1[start_node_id]}::int, 
+                {1[end_node_id]}::int,
+                
+                {1[left_face_id]}::int, 
+                {1[right_face_id]}::int,
+                
+                {1[geometry]}::geometry
+            FROM 
+                {0}_edge 
+            """.format(name, attribute_mapping)
+            
+        else:
+            #edges
+            sql = """SELECT 
+                edge_id::int,
+                start_node_id::int, 
+                end_node_id::int,
+                
+                left_face_id::int, 
+                right_face_id::int,
+                
+                geometry::geometry
+            FROM 
+                {0}_edge 
+            """.format(name)
+        if where is not None:
+            sql += where
+        
+        logging.debug(sql)
+        
+        for edge_id, \
+            start_node_id, \
+            end_node_id, \
+            left_face_id, \
+            right_face_id, \
+            geometry, in connection.irecordset(sql):
+            try:
+                assert edge_id is not None
+                assert start_node_id is not None
+                assert end_node_id is not None
+                assert left_face_id is not None
+                assert right_face_id is not None
+                assert geometry is not None
+                #for item in (edge_id, start_node_id, end_node_id, left_face_id, right_face_id, geometry):
+                #   assert item is not None, item
+            except AssertionError:
+                raise ValueError("Edge {0} not correct -- None field found".format(edge_id))
+            topo_map.add_edge(edge_id,
+                              start_node_id, end_node_id,
+                              left_face_id, right_face_id,
+                              geometry, attrs = {'locked': False, 'edge_class': 1})
+        find_loops(topo_map)
+        return topo_map
+
 
 
     @classmethod
