@@ -1,4 +1,5 @@
 import logging
+import simplegeom
 log = logging.getLogger(__name__)
 
 #from connection.dumb import recordset, record, irecordset, execute
@@ -291,6 +292,113 @@ class TopoMapFactory(object):
             topo_map.add_edge(*item)
         LoopFactory.find_clipped_loops(topo_map)
         return topo_map
+
+
+    @classmethod
+    def clipped_topo_map_qgis(cls, name, rectangular, imp, universe_id = None, srid = None):
+        """
+        Create topomap for clipped viewport of QGIS
+        1) Create function for retrieving correct left and right pointer of edges
+        2) get proper faces and edges from db
+        3) forms loops with clipped polygons         
+        """
+        from simplegeom.geometry import Envelope
+        import loopfactory
+        
+        connection = ConnectionFactory.connection(True)
+        universe_id = universe_id
+        srid = srid
+        name = name
+        # TODO: get universe / srid from metadata if not given
+        assert universe_id is not None
+        assert srid is not None
+        # also add border face as item
+        border_face_id = -1
+        topo_map = TopoMap(universe_id = universe_id, srid = srid)
+        topo_map.add_face(border_face_id, attrs = {'clipped': True}).unbounded = True
+        
+        
+        bbox = Envelope(rectangular[0], rectangular[1], rectangular[2], rectangular[3])
+        
+        function = """
+            CREATE OR REPLACE FUNCTION translate_face(integer, numeric)
+            RETURNS integer
+            LANGUAGE sql
+            AS '
+            with recursive walk_hierarchy(id, parentid, il, ih) as
+            (
+                    select face_id, parent_face_id, imp_low, imp_high from {0}_tgap_face_hierarchy where face_id = $1
+                UNION ALL
+                    select fh.face_id, fh.parent_face_id, fh.imp_low, fh.imp_high from {0}_tgap_face_hierarchy fh,
+                    walk_hierarchy w
+                    where w.parentid = fh.face_id and w.ih <= $2
+            )
+            select id from walk_hierarchy where il <= $2 and ih > $2;
+            ' IMMUTABLE;
+            """.format(name)
+        connection.execute(function)
+        # faces
+        sql = """SELECT 
+            face_id::int,
+            mbr_geometry,
+            feature_class::int
+        FROM
+            {0}_tgap_face
+        WHERE
+            mbr_geometry && '{1}'::geometry AND imp_low <= {2} AND imp_high > {2}
+            """.format(name, dumps(bbox.polygon), imp) # as_hexewkb(bbox, srid))
+#         print sql
+        for face_id, mbr, feature_class, in connection.irecordset(sql):
+            topo_map.add_face(face_id, 
+                              attrs = {'feature_class': feature_class,
+                                       'clipped': False if bbox.contains_properly(mbr.envelope) else True})
+        
+        #edges
+        sql = """SELECT 
+            edge_id::int,
+            start_node_id::int, end_node_id::int,
+            left_face_id_low::int,
+            translate_face(left_face_id_low, {2})::int, 
+            right_face_id_low::int,
+            translate_face(right_face_id_low, {2})::int,
+            geometry::geometry
+        FROM 
+            {0}_tgap_edge
+        WHERE
+            geometry && '{1}'::geometry AND imp_low <= {2} AND imp_high > {2}
+        """.format(name, dumps(bbox.polygon), imp)
+        ec = EdgeClipper(bbox=bbox, 
+                         border_face_id=-1)
+        for edge_id, \
+            start_node_id, end_node_id, \
+            old_left_face, left_face_id, \
+            old_right_face, right_face_id, \
+            geometry, in connection.irecordset(sql):
+            
+            if old_left_face == universe_id:
+                left_face_id = universe_id
+            if old_right_face == universe_id:
+                right_face_id = universe_id
+#             print "edge", edge_id, old_left_face, left_face_id,old_right_face, right_face_id
+            if bbox.contains_properly(geometry.envelope):
+                topo_map.add_edge(edge_id,
+                              start_node_id, end_node_id,
+                              left_face_id, right_face_id,
+                              geometry
+                              )
+            else:
+                ec.clip_edge(edge_id,
+                              start_node_id, end_node_id,
+                              left_face_id, right_face_id,
+                              geometry
+                     )
+        for item in ec.border_segments:
+            topo_map.add_edge(*item)
+        for item in ec.clipped:
+            topo_map.add_edge(*item)
+        loopfactory.find_clipped_loops(topo_map)
+        return topo_map
+
 
     @classmethod
     def topo_map_bbox(cls, name, bbox, universe_id = None, srid = None):
