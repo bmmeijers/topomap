@@ -1,5 +1,4 @@
 import logging
-log = logging.getLogger(__name__)
 
 #from connection.dumb import recordset, record, irecordset, execute
 #from simplegeom.postgis import register
@@ -499,7 +498,7 @@ class PolygonFactory():
         WHERE face_id = {1}
             """.format(name, face_id)
         face_id, mbr_geometry, feature_class, = connection.record(sql)
-        log.debug(face_id)
+        logging.debug(face_id)
         topo_map.add_face(face_id, 
             attrs = {'feature_class': feature_class,
                      'mbr': mbr_geometry.envelope,
@@ -507,7 +506,7 @@ class PolygonFactory():
         assert len(topo_map.faces) == 2
         
         fixed = topo_map.add_face(-99, attrs = {'fixed': True,})
-        log.debug(fixed)
+        logging.debug(fixed)
         #edges
         sql = """SELECT 
                 edge_id::int, 
@@ -546,7 +545,7 @@ class PolygonFactory():
     @classmethod
     def wings(cls, name, face_id, universe_id = None, srid = None):
         warnings.warn("Wings have not been fully tested")
-#        log.debug("starting wings")
+#        logging.debug("starting wings")
         # TODO: get universe / srid from metadata if not given
         connection = ConnectionFactory.connection(True)
         assert universe_id is not None
@@ -607,7 +606,7 @@ class PolygonFactory():
                               start_node_id, end_node_id,
                               left_face_id, right_face_id,
                               geometry)
-#            log.debug("edge: {0} {1}".format(edge_id, geometry))
+#            logging.debug("edge: {0} {1}".format(edge_id, geometry))
         LoopFactory.find_loops(topo_map)
         current_face = topo_map.faces[face_id]
 #        for edge in topo_map.half_edges.itervalues():

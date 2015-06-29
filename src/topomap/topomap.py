@@ -75,7 +75,7 @@ class TopoMap(object):
             #
             he0.angle = angle(geometry[0], geometry[1])
             he1.angle = angle(geometry[-1], geometry[-2])
-            
+
             # left face
             he0.face = self.add_face(left_face_id)
             # right face
@@ -120,15 +120,16 @@ class TopoMap(object):
 
         start_node = he0.origin
         end_node = he1.origin
-        
+
         start_node.remove_he(he0)
         end_node.remove_he(he1)
-        
+
         if remove_nodes:
             if start_node.degree == 0:
                 self.remove_node(start_node.id)
             if start_node is not end_node and end_node.degree == 0:
                 self.remove_node(end_node.id)
+
         he0.next = None
         he0.prev = None
         he1.next = None

@@ -37,7 +37,7 @@ class TopoMapExporter(object):
         pip = Field("pip_geometry", "point")
         mbr = Field("mbr_geometry", "box2d")
         if face_geometry:
-            poly = Field("geometry", "polygon")            
+            poly = Field("geometry", "polygon")
         #
         schema = Schema()
         schema.add_field(face_id)

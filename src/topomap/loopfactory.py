@@ -10,9 +10,10 @@ VISITED = 1
 
 
 def find_loops_partly(tm):
+    """Finds loop objects, starting on half_edges without loop"""
     # FIXME: this is not any more efficient, then just calling find_loops
     # as in find_loops the edge.loop is checked as well for starting
-    """Finds loop objects, starting on half_edges without loop"""
+    raise NotImplementedError("This method is not useful, functionality similar to find_loops.")
     visit = set()
     for he in tm.half_edges.itervalues():
         for h in (he, he.twin):
@@ -26,12 +27,13 @@ def find_loops(topomap, half_edges = None):
     if half_edges is None:
         half_edges = topomap.half_edges.itervalues()
 
-    for item in half_edges:            
+    for item in half_edges:
         for edge in (item, item.twin):
-            if edge.loop is not None:
+            if edge.loop != None:
                 continue
             else:
                 start = edge
+#                 print start
 #                 assert start.face.attrs['locked'] == False
                 loop = Loop(start)
                 start.face.loops.append(loop)
@@ -41,7 +43,7 @@ def find_loops(topomap, half_edges = None):
                     if guard > 500000:
                         raise Exception('Too much iteration for {0}, started at {1}'.format(start.face, start))
                     edge.label = VISITED #this guarantee that all edges after forming loop are set to VISITED
-                    assert edge.loop is None
+                    assert edge.loop is None, "At edge {0} already found loop".format(edge.id)
                     edge.loop = loop
                     try:
                         assert edge.face is start.face, "{0}, reconstructing: {1}".format(edge, start.face)
@@ -50,8 +52,9 @@ def find_loops(topomap, half_edges = None):
                         print "... reconstructing: {0}".format(start.face)
                         print "...", edge, edge.face, start.face
                         print ""
-                        raise
+                        #raise
                     edge = edge.next
+#                     print "", edge
                     if edge is start:
                         break
 
