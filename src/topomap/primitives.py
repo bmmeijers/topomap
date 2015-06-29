@@ -295,19 +295,23 @@ class Loop(object):
                 break
             if guard > 500000:
                 raise Exception('Too much iteration in loop.half_edges')
-    
+
     def reset_geometry(self):
         """Empty cache of geometry
         """
         self.linear_rings = None
         self.linestrings = None
-    
+
     @property
     def geometry(self):
         """Constructs geometry for this Loop
         """
         # caching of rings, as copying of geometry is quite heavy process
         # (could be optimised -> faster array mechanism under neath geometry?)
+        #
+        # MM disable caching of rings at all...
+        self.linear_rings = None
+        self.linestrings = None
         if self.linear_rings is None:
             # make linear rings out of this loop (tangency
             # can cause a loop to have multiple rings
@@ -447,12 +451,10 @@ class Loop(object):
                     self.linestrings = [ring]
                 else:
                     self.linear_rings = [LinearRing(ring)]
-
-##            Expensive checks!
-#            for ring in self.linear_rings:
-#                assert is_linearring(ring)
-#                assert is_ring_simple(ring)
-
+    ##            Expensive checks!
+    #            for ring in self.linear_rings:
+    #                assert is_linearring(ring)
+    #                assert is_ring_simple(ring)
         return self.linear_rings, self.linestrings
 
 
@@ -464,6 +466,10 @@ class HalfEdge(object):
                  'origin', 'angle', 
                  'prev', 'next', 
                  'loop', 'face', 'label')
+
+    # FIXME: should we not keep only a pointer to the loop object,
+    # by means of which we can access the face object? -> will not work
+    # at the moment, as the face of the loop is coming from the first half edge!
 
     def __init__(self, anchor = None):
         self.anchor = anchor
@@ -484,7 +490,7 @@ class HalfEdge(object):
             return self.twin.anchor.id
         else:
             return self.anchor.id
-    
+
     def __str__(self):
         prev_id, next_id = None, None
         if self.prev is not None:
@@ -501,7 +507,7 @@ class HalfEdge(object):
         """
         self.twin = edge
         edge.twin = self
-    
+
     def blank(self):
         """Sets attributes to None
         """
@@ -514,7 +520,7 @@ class HalfEdge(object):
         self.loop = None
         self.face = None
         self.label = None
-    
+
     @property
     def geometry(self):
         """Returns copy of geometry that *is* 
@@ -594,7 +600,7 @@ class PolygonizeFactory(object):
         """
         face.rings = []
         face.linestrings = []
-        area = 0.        
+        area = 0.
         try:
             assert len(face.loops) > 0
         except AssertionError:
@@ -705,9 +711,9 @@ class PolygonizeFactory(object):
                         poly.append(iring)
                         break
                 # if for loop did not break, we did not find suitable candidate
-                else:                     
+                else:
                     if face.unbounded is not True:
                         raise ValueError('No suitable outer ring found for inner ring {0}'.format(iring))
 #                        print "No suitable outer ring found for inner ring in face", face.id
 
-        return parts        
+        return parts
