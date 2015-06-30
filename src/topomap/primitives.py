@@ -239,6 +239,23 @@ class Node(object):
             yield ccw_he
             ccw_he = ccw_he.prev.twin
 
+# class LoopIterator(object):
+#     def __init__(self, loop):
+#         self.start = self.cur = loop.start
+#         self.stop = False
+# 
+#     def __iter__(self):
+#         return self
+# 
+#     def next(self):
+#         self.cur = self.cur.next
+#         if not self.stop:
+#             if self.cur is self.start:
+#                 self.stop = True
+#             return self.cur
+#         else:
+#             raise StopIteration()
+
 class Loop(object):
     """Loop class -- A loop is a set of HalfEdges along a Face boundary
     """
@@ -281,20 +298,21 @@ class Loop(object):
     def half_edges(self):
         """Iterator over HalfEdges that are part of this Loop
         """
+#         return LoopIterator(self)
         try:
             assert self.start is not None
         except:
             raise Exception("ERROR in {0} -- Orphaned loop found: no associated halfedge".format(self))
         edge = self.start
-        guard = 0
+#         guard = 0
         while True:
             yield edge
-            guard += 1
+#             guard += 1
             edge = edge.next
             if edge is self.start:
                 break
-            if guard > 500000:
-                raise Exception('Too much iteration in loop.half_edges')
+#             if guard > 500000:
+#                 raise Exception('Too much iteration in loop.half_edges')
 
     def reset_geometry(self):
         """Empty cache of geometry
@@ -310,8 +328,8 @@ class Loop(object):
         # (could be optimised -> faster array mechanism under neath geometry?)
         #
         # MM disable caching of rings at all...
-        self.linear_rings = None
-        self.linestrings = None
+#         self.linear_rings = None
+#         self.linestrings = None
         if self.linear_rings is None:
             # make linear rings out of this loop (tangency
             # can cause a loop to have multiple rings
@@ -322,16 +340,19 @@ class Loop(object):
             tangent_nodes = set()
             stack = []
             visit_count = {}
+            _tangent_nodes_add = tangent_nodes.add # ref to function
+            _nodes_add = nodes.add                 # ref to function
             for edge in self.half_edges:
                 #print edge.id, "origin", edge.origin, "face", edge.face
                 if edge.origin not in nodes:
-                    nodes.add(edge.origin)
+                    _nodes_add(edge.origin)
                 else:
-                    tangent_nodes.add(edge.origin)
+                    _tangent_nodes_add(edge.origin)
                     if edge.origin not in visit_count:
                         visit_count[edge.origin] = 1
                     visit_count[edge.origin] += 1
-                ring_is_flat = edge.twin.face is edge.face
+            ring_is_flat = edge.twin.face is edge.face
+            #
             if tangent_nodes:
                 rings = []
                 linestrings = []
@@ -340,6 +361,7 @@ class Loop(object):
                 start_node = None
                 end_node = None
                 edge_seen = set()
+                #_ring_extend = ring.extend # ref to function
                 for edge in self.half_edges:
                     is_flat = edge.twin.face is edge.face
                     if not edge.id in edge_seen:
@@ -583,7 +605,6 @@ class HalfEdge(object):
             return self.anchor.attrs
         else:
             return self.twin.anchor.attrs
-
 
 class PolygonizeFactory(object):
     """Methods to convert Face to geometry

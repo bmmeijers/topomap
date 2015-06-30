@@ -17,8 +17,11 @@ attribs = {"face_id": "face_id",
 "geometry": "geometry"}
 
 
+tm = TopoMapFactory.topo_map('set050k', universe_id = -1, srid = 28992, attribute_mapping = attribs)
+
 start = time.clock()
-tm = TopoMapFactory.topo_map('set300k', universe_id = 0, srid = 28992, attribute_mapping = attribs)
+for face in tm.faces.itervalues():
+    g = face.multigeometry()
 end = time.clock()
 
 print end - start

@@ -34,7 +34,7 @@ class TopoMapFactory(object):
         assert universe_id is not None
         assert srid is not None
         topo_map = TopoMap(universe_id = universe_id, srid = srid)
-        
+
         if attribute_mapping is not None:
             # faces
             sql = """SELECT 
@@ -57,9 +57,7 @@ class TopoMapFactory(object):
             assert face_id is not None
             topo_map.add_face(face_id, 
                               attrs = {'feature_class': feature_class,})
-        
         logging.debug(sql)
-        
         if attribute_mapping is not None:
             # faces
             sql = """SELECT 
