@@ -14,7 +14,7 @@ cdef class Face:
     cdef public list loops
     cdef public list rings
     cdef public list linestrings
-    cdef public double area
+#     cdef public double area
 
 cdef class Anchorage:
     cdef public int id
@@ -39,6 +39,9 @@ cdef class Loop:
     cdef public HalfEdge start 
     cdef public list linear_rings
     cdef public list linestrings
+    cdef public bint _dirty
+    cdef public double _area
+    cdef public object _bbox
 
 cdef class HalfEdge:
     cdef public Anchorage anchor

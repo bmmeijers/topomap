@@ -41,7 +41,7 @@ PACKAGES = find_packages('src')
 #     EXT_MODULES = [
 #        Extension('topomap.primitives', 
 #                   ['src/topomap/primitives.c']),
-# 
+#  
 #     ]
 EXT_MODULES = []
 SCRIPTS = [] 

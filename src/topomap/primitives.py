@@ -96,16 +96,19 @@ class Face(object):
 
     @property
     def area(self):
-        return abs(sum([loop.area() for loop in self.loops]))
+        return abs(sum([loop.area for loop in self.loops]))
 
     @property
     def bbox(self):
-        it = iter(self.loops)
-        first = next(it)
-        bbox = first.bbox()
-        for loop in it:
-            bbox.enlarge_by(loop.bbox())
-        return bbox
+        box = None
+        for loop in self.loops:
+            if box is None:
+                box = loop.bbox
+            else:
+                other = loop.bbox
+                if other is not None:
+                    box.enlarge_by(other)
+        return box
 
     @property
     def half_edges(self):
@@ -182,7 +185,7 @@ class Node(object):
         """
         self.he = None
         self.geometry = None
-        self.degree = None
+        self.degree = 0
 
 #     def __eq__(self, other):
 #         return self.id == other.id
@@ -297,37 +300,62 @@ class Loop(object):
     """Loop class -- A loop is a set of HalfEdges along a Face boundary
     """
     
-    __slots__ = ('start', 'linear_rings', 'linestrings')
+    __slots__ = ('start', 'linear_rings', 'linestrings', 
+                 '_dirty', '_area', '_bbox')
     
     def __init__(self, edge):
         self.start = edge
         self.linear_rings = None
         self.linestrings = None
-    
+        #
+        self._dirty = True
+        
+
     def __str__(self):
         try:
             return "Loop<{2} @ {1} ({0})>".format(id(self), self.start, self.face)
         except:
             return "Loop<{0}>".format(id(self))
 
+    @property
     def area(self):
-        signed_area = 0.
-        for he in self.half_edges:
-            if he.anchor is not None:
-                geom = he.anchor.geometry[:]
-            else:
-                geom = he.twin.anchor.geometry[:]
-                geom.reverse()
-            signed_area += geom.trapezoid_area
-        return signed_area
+        # FIXME: caching this
+        # if self._is_dirty:
+        #    do_calc_of_signed_area
+        # return self._signed_area
+        if self._dirty:
+            self._area_bbox()
+        return self._area
 
+    @property
     def bbox(self):
-        it = iter(self.half_edges)
-        he = next(it)
-        box = he.geometry.envelope
-        for he in it:
-            box.enlarge_by(he.geometry.envelope)
-        return box
+        if self._dirty:
+            self._area_bbox()
+        return self._bbox
+
+    def _area_bbox(self):
+        """Visit all half edges of the loop and update the 
+        _bbox and _area value of the geometry
+        """
+        signed_area = 0.
+        bbox = None
+        for he in self.half_edges:
+            # area
+            if he.anchor is not None:
+                geom = he.anchor.geometry
+                mul = 1.
+            else:
+                geom = he.twin.anchor.geometry
+                mul = -1.
+            signed_area += mul * geom.trapezoid_area
+            # bbox
+            if bbox is None:
+                bbox = he.geometry.envelope
+            else:
+                bbox.enlarge_by(he.geometry.envelope)
+        self._area = signed_area
+        self._bbox = bbox
+        self._dirty = False
 
     @property
     def face(self):
@@ -341,12 +369,16 @@ class Loop(object):
         self.start = None
         self.linear_rings = None
         self.linestrings = None
+        self._box = None
 
     def remove_he(self, edge):
         """Removes HalfEdge from this Loop if *edge* is *self.start*
         """
         if edge is self.start:
             self.start = None
+
+        self._dirty = True
+
         self.linear_rings = None
         self.linestrings = None
 
@@ -355,22 +387,22 @@ class Loop(object):
     def half_edges(self):
         """Iterator over HalfEdges that are part of this Loop
         """
-        return LoopHalfEdgesIterator(self)
+#         return LoopHalfEdgesIterator(self)
 #         return LoopIterator(self)
 
 #         try:
 #             assert self.start is not None
 # #         except:
-#         if self.start is None:
-#             raise ValueError("ERROR in {0} -- Orphaned loop found: no associated halfedge".format(self))
-#         edge = self.start
-# #         guard = 0
-#         while True:
-#             yield edge
-# #             guard += 1
-#             edge = edge.next
-#             if edge is self.start:
-#                 break
+        if self.start is None:
+            raise ValueError("ERROR in {0} -- Orphaned loop found: no associated halfedge".format(self))
+        edge = self.start
+#         guard = 0
+        while True:
+            yield edge
+#             guard += 1
+            edge = edge.next
+            if edge is self.start:
+                break
 
     def reset_geometry(self):
         """Empty cache of geometry
@@ -594,12 +626,12 @@ class HalfEdge(object):
         self.twin = None
         self.anchor = None
         self.origin = None
-        self.angle = None
+        self.angle = 0.
         self.prev = None
         self.next = None
         self.loop = None
         self.face = None
-        self.label = None
+        self.label = -1
 
     @property
     def geometry(self):
