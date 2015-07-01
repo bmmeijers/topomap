@@ -8,7 +8,7 @@ import sys
 
 from simplegeom.geometry import Polygon, LinearRing, LineString
 
-import cython
+# import cython
 
 PI2 = 2 * pi
 INIT = False
@@ -30,10 +30,30 @@ def angle(p1, p2):
         angle += PI2
     return angle
 
+# def trapezoid_area(it):
+#     """Returns signed trapezoid area under the given line.
+#     
+#     Computation of the trapezoid area:
+#     
+#     0.5 * (y1 + y2) * dx
+#     
+#     where dx is the width and y1 and y2 are the 2 y-values.
+#     """
+#     area = 0.
+#     first = True
+#     for end in it:
+#         if not first:
+#             y = end[1] + start[1]
+#             dx = end[0] - start[0]
+#             area += 0.5 * y * dx
+#         first = False
+#         start = end
+#     return area
+
 class Face(object):
     """Face"""
-    __slots__ = ('id', 'unbounded', 'attrs', 'loops', 'rings', 'linestrings', 'area')
-    
+    __slots__ = ('id', 'unbounded', 'attrs', 'loops', 'rings', 'linestrings')
+
     def __init__(self, face_id, attrs, unbounded):
         self.id = face_id
         self.unbounded = unbounded
@@ -42,14 +62,13 @@ class Face(object):
         self.loops = []
         self.rings = []
         self.linestrings = []
-        self.area = 0.
 
     def blank(self):
         """Sets all attributes to None
         """
         self.loops = None
         self.rings = None
-        self.area = None
+#         self.area = None
         self.attrs = None
 
     def __str__(self):
@@ -64,7 +83,7 @@ class Face(object):
         
         self.loops = []
         self.rings = []
-        self.area = None
+#         self.area = None
 
     def multigeometry(self, srid = 0):
         """Returns a list of geometries for this face
@@ -74,7 +93,20 @@ class Face(object):
         """
         #return PolygonizeFactory.face_to_geometry(self, srid=srid)
         return PolygonizeFactory.face_to_geometry(self, srid=srid)
-    
+
+    @property
+    def area(self):
+        return abs(sum([loop.area() for loop in self.loops]))
+
+    @property
+    def bbox(self):
+        it = iter(self.loops)
+        first = next(it)
+        bbox = first.bbox()
+        for loop in it:
+            bbox.enlarge_by(loop.bbox())
+        return bbox
+
     @property
     def half_edges(self):
         """HalfEdges having a relation with this face
@@ -278,6 +310,25 @@ class Loop(object):
         except:
             return "Loop<{0}>".format(id(self))
 
+    def area(self):
+        signed_area = 0.
+        for he in self.half_edges:
+            if he.anchor is not None:
+                geom = he.anchor.geometry[:]
+            else:
+                geom = he.twin.anchor.geometry[:]
+                geom.reverse()
+            signed_area += geom.trapezoid_area
+        return signed_area
+
+    def bbox(self):
+        it = iter(self.half_edges)
+        he = next(it)
+        box = he.geometry.envelope
+        for he in it:
+            box.enlarge_by(he.geometry.envelope)
+        return box
+
     @property
     def face(self):
         """Face to which this Loop belongs
@@ -300,7 +351,7 @@ class Loop(object):
         self.linestrings = None
 
     @property
-    @cython.returns(LoopHalfEdgesIterator)
+#     @cython.returns(LoopHalfEdgesIterator)
     def half_edges(self):
         """Iterator over HalfEdges that are part of this Loop
         """
@@ -623,10 +674,10 @@ class LoopHalfEdgesIterator(object):
     def __iter__(self):
         return self
  
-    @cython.locals(edge=HalfEdge)
-    @cython.returns(HalfEdge)
-    def __next__(self):
-#     def next(self):
+#     @cython.locals(edge=HalfEdge)
+#     @cython.returns(HalfEdge)
+#     def __next__(self):
+    def next(self):
         if self.cur != None:
             edge = self.cur
             if edge.next != self.start:

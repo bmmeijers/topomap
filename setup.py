@@ -33,16 +33,17 @@ def get_version():
     return version
 
 PACKAGES = find_packages('src')
-if cython_available:
-    EXT_MODULES = cythonize(["src/topomap/primitives.py",
-                                ])
-else:
-    sys.stderr.write("Cython NOT available, building from .C sources\n")
-    EXT_MODULES = [
-       Extension('topomap.primitives', 
-                  ['src/topomap/primitives.c']),
-
-    ]
+# if cython_available:
+#     EXT_MODULES = cythonize(["src/topomap/primitives.py",
+#                                 ])
+# else:
+#     sys.stderr.write("Cython NOT available, building from .C sources\n")
+#     EXT_MODULES = [
+#        Extension('topomap.primitives', 
+#                   ['src/topomap/primitives.c']),
+# 
+#     ]
+EXT_MODULES = []
 SCRIPTS = [] 
 REQUIREMENTS = []
 DATA_FILES = []
