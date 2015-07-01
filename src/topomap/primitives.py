@@ -1,3 +1,5 @@
+# cython: profile=True
+
 import logging
 log = logging.getLogger(__name__)
 
@@ -5,6 +7,8 @@ from math import pi, atan2
 import sys
 
 from simplegeom.geometry import Polygon, LinearRing, LineString
+
+import cython
 
 PI2 = 2 * pi
 INIT = False
@@ -51,8 +55,8 @@ class Face(object):
     def __str__(self):
         return "<f%d>" % (self.id)
 
-    def __eq__(self, other):
-        return self.id == other.id
+#     def __eq__(self, other):
+#         return self.id == other.id
     
     def reset_loops(self):
         """Removes loops and rings info from cache
@@ -148,8 +152,8 @@ class Node(object):
         self.geometry = None
         self.degree = None
 
-    def __eq__(self, other):
-        return self.id == other.id
+#     def __eq__(self, other):
+#         return self.id == other.id
     
     def __hash__(self):
         return hash(self.id)
@@ -256,25 +260,6 @@ class Node(object):
 #         else:
 #             raise StopIteration()
 
-class LoopHalfEdgesIterator(object):
-    __slots__ = ('start', '_next')
-    def __init__(self, loop):
-        self.start = loop.start
-        self._next = self.start
-
-    def __iter__(self):
-        return self
-
-    def next(self):
-        if self._next != None:
-            edge = self._next
-            if edge.next != self.start:
-                self._next = edge.next
-            else:
-                self._next = None
-            return edge
-        else:
-            raise StopIteration()
 
 class Loop(object):
     """Loop class -- A loop is a set of HalfEdges along a Face boundary
@@ -315,6 +300,7 @@ class Loop(object):
         self.linestrings = None
 
     @property
+    @cython.returns(LoopHalfEdgesIterator)
     def half_edges(self):
         """Iterator over HalfEdges that are part of this Loop
         """
@@ -323,8 +309,9 @@ class Loop(object):
 
 #         try:
 #             assert self.start is not None
-#         except:
-#             raise Exception("ERROR in {0} -- Orphaned loop found: no associated halfedge".format(self))
+# #         except:
+#         if self.start is None:
+#             raise ValueError("ERROR in {0} -- Orphaned loop found: no associated halfedge".format(self))
 #         edge = self.start
 # #         guard = 0
 #         while True:
@@ -517,12 +504,12 @@ class HalfEdge(object):
         self.anchor = anchor
         self.twin = None
         self.origin = None
-        self.angle = None
+        self.angle = -1
         self.prev = None
         self.next = None
         self.loop = None
         self.face = None
-        self.label = None
+        self.label = -1
 
     @property
     def id(self):
@@ -625,6 +612,31 @@ class HalfEdge(object):
             return self.anchor.attrs
         else:
             return self.twin.anchor.attrs
+
+
+class LoopHalfEdgesIterator(object):
+#     __slots__ = ('start', '_next')
+    def __init__(self, loop):
+        self.start = loop.start
+        self.cur = self.start
+ 
+    def __iter__(self):
+        return self
+ 
+    @cython.locals(edge=HalfEdge)
+    @cython.returns(HalfEdge)
+    def __next__(self):
+#     def next(self):
+        if self.cur != None:
+            edge = self.cur
+            if edge.next != self.start:
+                self.cur = edge.next
+            else:
+                self.cur = None
+            return edge
+        else:
+            raise StopIteration()
+
 
 class PolygonizeFactory(object):
     """Methods to convert Face to geometry

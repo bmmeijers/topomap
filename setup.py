@@ -2,6 +2,13 @@ import ez_setup
 ez_setup.use_setuptools()
 from setuptools import setup, find_packages, Extension
 import os
+import sys
+try:
+    from Cython.Build import cythonize
+    cython_available = True
+except ImportError:
+    cython_available = False
+
 
 def get_version():
     """
@@ -26,7 +33,16 @@ def get_version():
     return version
 
 PACKAGES = find_packages('src')
-EXT_MODULES = []
+if cython_available:
+    EXT_MODULES = cythonize(["src/topomap/primitives.py",
+                                ])
+else:
+    sys.stderr.write("Cython NOT available, building from .C sources\n")
+    EXT_MODULES = [
+       Extension('topomap.primitives', 
+                  ['src/topomap/primitives.c']),
+
+    ]
 SCRIPTS = [] 
 REQUIREMENTS = []
 DATA_FILES = []

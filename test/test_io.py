@@ -17,7 +17,7 @@ attribs = {"face_id": "face_id",
 "geometry": "geometry"}
 
 
-tm = TopoMapFactory.topo_map('set050k', universe_id = -1, srid = 28992, attribute_mapping = attribs)
+tm = TopoMapFactory.topo_map('set880k', universe_id = -1, srid = 28992, attribute_mapping = attribs)
 
 start = time.clock()
 for face in tm.faces.itervalues():
