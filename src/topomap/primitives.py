@@ -256,6 +256,26 @@ class Node(object):
 #         else:
 #             raise StopIteration()
 
+class LoopHalfEdgesIterator(object):
+    __slots__ = ('start', '_next')
+    def __init__(self, loop):
+        self.start = loop.start
+        self._next = self.start
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        if self._next != None:
+            edge = self._next
+            if edge.next != self.start:
+                self._next = edge.next
+            else:
+                self._next = None
+            return edge
+        else:
+            raise StopIteration()
+
 class Loop(object):
     """Loop class -- A loop is a set of HalfEdges along a Face boundary
     """
@@ -298,21 +318,21 @@ class Loop(object):
     def half_edges(self):
         """Iterator over HalfEdges that are part of this Loop
         """
+        return LoopHalfEdgesIterator(self)
 #         return LoopIterator(self)
-        try:
-            assert self.start is not None
-        except:
-            raise Exception("ERROR in {0} -- Orphaned loop found: no associated halfedge".format(self))
-        edge = self.start
-#         guard = 0
-        while True:
-            yield edge
-#             guard += 1
-            edge = edge.next
-            if edge is self.start:
-                break
-#             if guard > 500000:
-#                 raise Exception('Too much iteration in loop.half_edges')
+
+#         try:
+#             assert self.start is not None
+#         except:
+#             raise Exception("ERROR in {0} -- Orphaned loop found: no associated halfedge".format(self))
+#         edge = self.start
+# #         guard = 0
+#         while True:
+#             yield edge
+# #             guard += 1
+#             edge = edge.next
+#             if edge is self.start:
+#                 break
 
     def reset_geometry(self):
         """Empty cache of geometry
@@ -727,6 +747,23 @@ class PolygonizeFactory(object):
             # then we check which inner ring is covered by which 
             # (there should be exactly one) of the outer rings
             for iring in inner:
+                # FIXME:
+                # this is not sufficient and can make that an island ring
+                # goes outside of its exterior ring
+                #
+                # consider this case:
+
+                ###   #####
+                # #   # O #
+                # #   #####
+                # #
+                # ########
+                #        #
+                #   O    #
+                #        #
+                ##########
+
+                # The O can be in both exterior rings, just by containment
                 for poly in parts:
                     if poly.envelope.covers(iring.envelope):
                         poly.append(iring)
