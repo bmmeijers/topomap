@@ -107,16 +107,21 @@ class TopoMap(object):
         """
         he0 = self.half_edges[edge_id]
         he1 = he0.twin
-        # set pointers to this HalfEdge to zero, if they exist
+        # removing an edge breaks two loops
+        # make the loop pointers of all involved edges None
+        # and remove the loop objects from the face as well
+        # FIXME: should this be optional? 
+        # E.g. introduce "remove_loop = True" as parameter?)
         for H in (he0, he1):
             if H.loop:
                 H.face.loops.remove(H.loop)
                 hes = [he for he in H.loop.half_edges]
                 for h in hes:
-                    h.loop.remove_he(h)
-                    h.loop = None
-                    if h.label == VISITED:
-                        h.label = INIT
+                    if h.loop is not None:
+                        h.loop.remove_he(h)
+                        h.loop = None
+                        if h.label == VISITED:
+                            h.label = INIT
 
         start_node = he0.origin
         end_node = he1.origin
