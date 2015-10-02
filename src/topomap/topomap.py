@@ -89,9 +89,9 @@ class TopoMap(object):
             he1.origin = end_node
             end_node.add_halfedge(he1)
             assert geometry[0] == start_node.geometry, \
-                "e{2} {0} vs. {1} :: {3} {4} @ {5} (startnode)".format(geometry[0], start_node.geometry, edge_id, geometry, he0, start_node.id)
+                "e{2} {0} vs. {1} :: {3} {4} @ {5} (startnode geometry does not match)".format(geometry[0], start_node.geometry, edge_id, geometry, he0, start_node.id)
             assert geometry[-1] == end_node.geometry, \
-                "e{2} {0} vs. {1} @ {4} (endnode) :: {3}".format(geometry[-1], end_node.geometry, edge_id, geometry, end_node.id)
+                "e{2} {0} vs. {1} @ {4} (endnode geometry does not match) :: {3}".format(geometry[-1], end_node.geometry, edge_id, geometry, end_node.id)
             # add is_edge to dictionary of edges
             self.half_edges[edge_id] = he0
         else:

@@ -72,7 +72,7 @@ class Face(object):
         self.attrs = None
 
     def __str__(self):
-        return "<f%d>" % (self.id)
+        return "<f{0}>".format(self.id)
 
 #     def __eq__(self, other):
 #         return self.id == other.id
@@ -369,7 +369,7 @@ class Loop(object):
         self.start = None
         self.linear_rings = None
         self.linestrings = None
-        self._box = None
+        self._bbox = None
 
     def remove_he(self, edge):
         """Removes HalfEdge from this Loop if *edge* is *self.start*
@@ -760,7 +760,7 @@ class PolygonizeFactory(object):
             #copy collapsed cycles   
             #if loop.linestrings: 
                 face.linestrings.extend(loop.linestrings)
-        face.area = area
+#         face.area = area
 
         # qa on ring sizes 
         # -> inner have negative area

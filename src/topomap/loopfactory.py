@@ -48,11 +48,12 @@ def find_loops(topomap, half_edges = None):
                     try:
                         assert edge.face is start.face, "{0}, reconstructing: {1}".format(edge, start.face)
                     except:
+#                         print edge.id
                         print "ERROR: {0}".format(edge)
                         print "... reconstructing: {0}".format(start.face)
                         print "...", edge, edge.face, start.face
                         print ""
-                        #raise
+                        raise
                     edge = edge.next
 #                     print "", edge
                     if edge is start:
