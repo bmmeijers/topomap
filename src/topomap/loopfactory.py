@@ -159,8 +159,9 @@ def find_clipped_loops(topomap, half_edges = None):
                     edge = edge.next
                     if edge is start:
                         break
-    fh = open('/tmp/tm.wkt', 'w')
-    fh.write('id;wkt;clipped\n')
+    #comment for use of qgis plugin
+#     fh = open('/tmp/tm.wkt', 'w')
+#     fh.write('id;wkt;clipped\n')
     to_remove = []
     for face in topomap.faces.itervalues():
         if not face.loops:
@@ -173,9 +174,9 @@ def find_clipped_loops(topomap, half_edges = None):
         except Exception, err:
             print err
             pass
-        if geoms:
-            for geom in geoms:
-                fh.write("{0};{1};{2}\n".format(face.id, geom, face.attrs['clipped']))
-    fh.close()
+#         if geoms:
+#             for geom in geoms:
+#                 fh.write("{0};{1};{2}\n".format(face.id, geom, face.attrs['clipped']))
+#     fh.close()
     for remove in to_remove:
         topomap.remove_face(remove)
