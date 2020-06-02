@@ -3,7 +3,7 @@
 """
 
 __date_created__ = '2012-07-02'
-__author__ = 'author1_fullname'
+__author__ = 'Martijn Meijers'
 
 import sys
 import logging

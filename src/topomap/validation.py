@@ -1,7 +1,7 @@
 """
 Created on Jun 26, 2012
 
-@author: author1_givenname
+@author: martijn
 """
 from primitives import increasing
 

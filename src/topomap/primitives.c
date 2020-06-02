@@ -1329,7 +1329,7 @@ static char __pyx_k_neighbours_no_same_face[] = "neighbours_no_same_face";
 static char __pyx_k_PolygonizeFactory___init[] = "PolygonizeFactory.__init__";
 static char __pyx_k_stack_should_be_empty_now[] = "stack should be empty now";
 static char __pyx_k_HE_e_1_n_2_f_3_0_next_4_prv_5[] = "HE<e{1} n{2} f{3} ({0} - next:{4} prv:{5})>";
-static char __pyx_k_home_author1_givenname_workspace_topomap[] = "/home/author1_givenname/workspace/topomap/src/topomap/primitives.py";
+static char __pyx_k_home_martijn_workspace_topomap[] = "/home/martijn/workspace/topomap/src/topomap/primitives.py";
 static char __pyx_k_ERROR_Face_0_has_1_inner_2_outer[] = "ERROR: Face {0} has {1} inner; {2} outer; {3} degenerate";
 static char __pyx_k_Error_in_face_0_no_loops_for_thi[] = "Error in face {0} -- no loops for this face";
 static char __pyx_k_Error_in_loop_of_face_0_no_rings[] = "Error in loop of face {0} -- no rings nor linestrings in this loop";
@@ -1400,7 +1400,7 @@ static PyObject *__pyx_n_s_getLogger;
 static PyObject *__pyx_n_s_half_edges;
 static PyObject *__pyx_n_s_he;
 static PyObject *__pyx_n_s_holes;
-static PyObject *__pyx_kp_s_home_author1_givenname_workspace_topomap;
+static PyObject *__pyx_kp_s_home_martijn_workspace_topomap;
 static PyObject *__pyx_n_s_i;
 static PyObject *__pyx_n_s_id;
 static PyObject *__pyx_n_s_import;
@@ -17685,7 +17685,7 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_n_s_half_edges, __pyx_k_half_edges, sizeof(__pyx_k_half_edges), 0, 0, 1, 1},
   {&__pyx_n_s_he, __pyx_k_he, sizeof(__pyx_k_he), 0, 0, 1, 1},
   {&__pyx_n_s_holes, __pyx_k_holes, sizeof(__pyx_k_holes), 0, 0, 1, 1},
-  {&__pyx_kp_s_home_author1_givenname_workspace_topomap, __pyx_k_home_author1_givenname_workspace_topomap, sizeof(__pyx_k_home_author1_givenname_workspace_topomap), 0, 0, 1, 0},
+  {&__pyx_kp_s_home_martijn_workspace_topomap, __pyx_k_home_martijn_workspace_topomap, sizeof(__pyx_k_home_martijn_workspace_topomap), 0, 0, 1, 0},
   {&__pyx_n_s_i, __pyx_k_i, sizeof(__pyx_k_i), 0, 0, 1, 1},
   {&__pyx_n_s_id, __pyx_k_id, sizeof(__pyx_k_id), 0, 0, 1, 1},
   {&__pyx_n_s_import, __pyx_k_import, sizeof(__pyx_k_import), 0, 0, 1, 1},
@@ -17868,7 +17868,7 @@ static int __Pyx_InitCachedConstants(void) {
   __pyx_tuple__10 = PyTuple_Pack(1, __pyx_n_s_self); if (unlikely(!__pyx_tuple__10)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 727; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_tuple__10);
   __Pyx_GIVEREF(__pyx_tuple__10);
-  __pyx_codeobj__11 = (PyObject*)__Pyx_PyCode_New(1, 0, 1, 0, 0, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__10, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_home_author1_givenname_workspace_topomap, __pyx_n_s_init, 727, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__11)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 727; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_codeobj__11 = (PyObject*)__Pyx_PyCode_New(1, 0, 1, 0, 0, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__10, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_home_martijn_workspace_topomap, __pyx_n_s_init, 727, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__11)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 727; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
 
   /* "topomap/primitives.py":731
  * 
@@ -17880,7 +17880,7 @@ static int __Pyx_InitCachedConstants(void) {
   __pyx_tuple__12 = PyTuple_Pack(17, __pyx_n_s_cls, __pyx_n_s_face, __pyx_n_s_srid, __pyx_n_s_area, __pyx_n_s_loop, __pyx_n_s_ring, __pyx_n_s_ring_area, __pyx_n_s_inner, __pyx_n_s_outer, __pyx_n_s_degenerate, __pyx_n_s_parts, __pyx_n_s_largest, __pyx_n_s_j, __pyx_n_s_i, __pyx_n_s_item, __pyx_n_s_poly, __pyx_n_s_iring); if (unlikely(!__pyx_tuple__12)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 731; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_tuple__12);
   __Pyx_GIVEREF(__pyx_tuple__12);
-  __pyx_codeobj__13 = (PyObject*)__Pyx_PyCode_New(3, 0, 17, 0, 0, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__12, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_home_author1_givenname_workspace_topomap, __pyx_n_s_face_to_geometry, 731, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__13)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 731; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+  __pyx_codeobj__13 = (PyObject*)__Pyx_PyCode_New(3, 0, 17, 0, 0, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__12, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_home_martijn_workspace_topomap, __pyx_n_s_face_to_geometry, 731, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__13)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 731; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __pyx_tuple__14 = PyTuple_Pack(1, ((PyObject *)__pyx_int_0)); if (unlikely(!__pyx_tuple__14)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 731; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
   __Pyx_GOTREF(__pyx_tuple__14);
   __Pyx_GIVEREF(__pyx_tuple__14);
