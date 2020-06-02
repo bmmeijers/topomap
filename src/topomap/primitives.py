@@ -52,7 +52,7 @@ def angle(p1, p2):
 
 class Face(object):
     """Face"""
-    __slots__ = ('id', 'unbounded', 'attrs', 'loops', 'rings', 'linestrings')
+    __slots__ = ('id', 'unbounded', 'attrs', 'loops', 'rings', 'linestrings', 'initial_representative_pt')
 
     def __init__(self, face_id, attrs, unbounded):
         self.id = face_id
@@ -62,6 +62,7 @@ class Face(object):
         self.loops = []
         self.rings = []
         self.linestrings = []
+        self.initial_representative_pt = None
 
     def blank(self):
         """Sets all attributes to None
@@ -93,6 +94,8 @@ class Face(object):
         """
         #return PolygonizeFactory.face_to_geometry(self, srid=srid)
         return PolygonizeFactory.face_to_geometry(self, srid=srid)
+
+
 
     @property
     def area(self):
@@ -151,6 +154,7 @@ class Face(object):
                         neighbours[edge.twin.face] = set()
                     neighbours[edge.twin.face].add(edge)
         return neighbours
+
 
 class Anchorage(object):
     """Container for attributes (dictionary)

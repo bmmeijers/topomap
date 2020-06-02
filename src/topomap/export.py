@@ -1,6 +1,6 @@
 #from sink import use
 #use('oracle')
-from sink import Field, Schema, Index, Layer, dumps
+from sink import DBColumn, Schema, Index, Layer#, dumps
 
 import warnings
 
@@ -9,13 +9,13 @@ class TopoMapExporter(object):
         pass
 
     @classmethod
-    def export(cls, topo_map, name, stream, face_geometry = True, wings = False):
-        if wings:
+    def export(cls, topo_map, name, stream, face_geometry = True, blnwings = False):
+        if blnwings:
             warnings.warn("Wings have not been fully tested")
         # Make schema
         # NODES
-        node_id = Field("node_id", "numeric")
-        point = Field("geometry", "point")
+        node_id = DBColumn("node_id", "numeric")
+        point = DBColumn("geometry", "point")
         
         # TODO:
         # - edge_id with node table -> start node = +, end_node = - of edge
@@ -31,13 +31,13 @@ class TopoMapExporter(object):
         nodes = Layer(schema, '{0}_node'.format(name), srid = topo_map.srid)
         
         # FACES
-        face_id = Field("face_id", "numeric")
-        area = Field("area", "float")
-        class_ = Field("feature_class", "integer")
-        pip = Field("pip_geometry", "point")
-        mbr = Field("mbr_geometry", "box2d")
+        face_id = DBColumn("face_id", "numeric")
+        area = DBColumn("area", "float")
+        class_ = DBColumn("feature_class", "integer")
+        pip = DBColumn("pip_geometry", "point")
+        mbr = DBColumn("mbr_geometry", "box2d")
         if face_geometry:
-            poly = Field("geometry", "polygon")
+            poly = DBColumn("geometry", "polygon")
         #
         schema = Schema()
         schema.add_field(face_id)
@@ -62,12 +62,12 @@ class TopoMapExporter(object):
         # - island_node_id list
         
         # EDGES
-        edge_id = Field("edge_id", "numeric")
-        left = Field("left_face_id", "numeric")
-        right = Field("right_face_id", "numeric")
-        start = Field("start_node_id", "numeric")
-        end = Field("end_node_id", "numeric")
-        if wings:
+        edge_id = DBColumn("edge_id", "numeric")
+        left = DBColumn("left_face_id", "numeric")
+        right = DBColumn("right_face_id", "numeric")
+        start = DBColumn("start_node_id", "numeric")
+        end = DBColumn("end_node_id", "numeric")
+        if blnwings:
             # wings
             #
             #   \     / 
@@ -82,12 +82,12 @@ class TopoMapExporter(object):
             #    /   \ 
             #   /     \
             # at start:
-            lcw = Field("lcw", "numeric")
-            rccw = Field("rccw", "numeric")
+            lcw = DBColumn("lcw", "numeric")
+            rccw = DBColumn("rccw", "numeric")
             # at end:
-            lccw = Field("lccw", "numeric")
-            rcw = Field("rcw", "numeric")
-        linestring = Field("geometry", "linestring")
+            lccw = DBColumn("lccw", "numeric")
+            rcw = DBColumn("rcw", "numeric")
+        linestring = DBColumn("geometry", "linestring")
         #
         schema = Schema()
         schema.add_field(edge_id)
@@ -95,7 +95,7 @@ class TopoMapExporter(object):
         schema.add_field(end)
         schema.add_field(left)
         schema.add_field(right)
-        if wings:
+        if blnwings:
             schema.add_field(lcw)
             schema.add_field(rccw)
             schema.add_field(lccw)
@@ -139,7 +139,7 @@ class TopoMapExporter(object):
             assert edge.anchor is not None
             lft = edge
             rgt = edge.twin
-            if wings:
+            if blnwings:
                 # TODO: signs of wings: + or -
                 # - lcw / prev left
                 # - rccw / next right

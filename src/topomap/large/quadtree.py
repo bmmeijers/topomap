@@ -3,7 +3,7 @@
 """
 
 __date_created__ = '2012-07-02'
-__author__ = 'Martijn Meijers'
+__author__ = 'author1_fullname'
 
 import sys
 import logging
@@ -12,7 +12,9 @@ logging.basicConfig(
     stream=sys.stderr, 
     level=logging.DEBUG)
 #from brep.io import geom_from_binary
-from connection.connect import ConnectionFactory
+# from connection.connect import ConnectionFactory
+# from connection.stateful import record
+from connection import ConnectionFactory
 from connection.stateful import record
 from topomap.io import TopoMapFactory
 

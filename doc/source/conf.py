@@ -42,7 +42,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'topomap'
-copyright = u'2012, Martijn Meijers'
+copyright = u'2012, author1_fullname'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -185,7 +185,7 @@ latex_elements = {
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
   ('index', 'topomap.tex', u'topomap Documentation',
-   u'Martijn Meijers', 'manual'),
+   u'author1_fullname', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -215,7 +215,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'topomap', u'topomap Documentation',
-     [u'Martijn Meijers'], 1)
+     [u'author1_fullname'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -229,7 +229,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'topomap', u'topomap Documentation',
-   u'Martijn Meijers', 'topomap', 'One line description of project.',
+   u'author1_fullname', 'topomap', 'One line description of project.',
    'Miscellaneous'),
 ]
 

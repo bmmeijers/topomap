@@ -16,7 +16,7 @@ class TopoMap(object):
     """
     def __init__(self, universe_id = 0, srid = -1):
         self.srid = srid
-        self.universe_id = universe_id
+        self.universe_id = universe_id # the id of the unbounded face (super face)
         self.faces = {}
         self.half_edges = {}
         self.nodes = {}
