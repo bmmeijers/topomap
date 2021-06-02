@@ -1,8 +1,8 @@
 """TopoMap
 """
 
-from primitives import Face, Anchorage, Loop, HalfEdge, Node
-from primitives import angle
+from .primitives import Face, Anchorage, Loop, HalfEdge, Node
+from .primitives import angle
 #import logging
 
 #log = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ class TopoMap(object):
     """
     def __init__(self, universe_id = 0, srid = -1):
         self.srid = srid
-        self.universe_id = universe_id # the id of the unbounded face (super face)
+        self.universe_id = universe_id
         self.faces = {}
         self.half_edges = {}
         self.nodes = {}
@@ -167,22 +167,22 @@ class TopoMap(object):
     def remove_loops(self):
         """Removes all loops for all faces
         """
-        for face in self.faces.itervalues():
+        for face in self.faces.values():
             face.reset_loops()
 
     def label_half_edges(self, value, half_edges = None):
         """Set *value* to all label properties on all HalfEdges
         """
         if not half_edges:
-            half_edges = self.half_edges.itervalues()
+            half_edges = iter(self.half_edges.values())
         for edge in half_edges:
             edge.label = value
             edge.twin.label = value
 
     def clear(self):
-        for edge_id in self.half_edges.keys():
+        for edge_id in list(self.half_edges.keys()):
             self.remove_edge(edge_id, True)
-        for face_id in self.faces.keys():
+        for face_id in list(self.faces.keys()):
             self.remove_face(face_id)
         self.nodes.clear()
         self.half_edges.clear()

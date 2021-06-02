@@ -3,7 +3,7 @@ Created on 30 jul. 2014
 
 @author: rsuba
 '''
-from primitives import Loop
+from .primitives import Loop
 
 INIT = 0
 VISITED = 1
@@ -15,7 +15,7 @@ def find_loops_partly(tm):
     # as in find_loops the edge.loop is checked as well for starting
     raise NotImplementedError("This method is not useful, functionality similar to find_loops.")
     visit = set()
-    for he in tm.half_edges.itervalues():
+    for he in tm.half_edges.values():
         for h in (he, he.twin):
             if h.loop is None:
                 visit.add(h)  
@@ -25,7 +25,7 @@ def find_loops(topomap, half_edges = None):
     """Find all Loop objects for a TopoMap 
     and adds them to the Face they belong to"""
     if half_edges is None:
-        half_edges = topomap.half_edges.itervalues()
+        half_edges = iter(topomap.half_edges.values())
 
     for item in half_edges:
         for edge in (item, item.twin):
@@ -49,12 +49,12 @@ def find_loops(topomap, half_edges = None):
                         assert edge.face is start.face, "{0}, reconstructing: {1}".format(edge, start.face)
                     except:
 #                         print edge.id
-                        print "ERROR: {0}".format(edge)
-                        print "... reconstructing: {0}".format(start.face)
-                        print "...", edge, edge.face, start.face
-                        print ""
-                        raise
-                    edge = edge.next
+                        print("ERROR: {0}".format(edge))
+                        print("... reconstructing: {0}".format(start.face))
+                        print("...", edge, edge.face, start.face)
+                        print("")
+#                        raise
+                    edge = edge.__next__
 #                     print "", edge
                     if edge is start:
                         break
@@ -71,7 +71,7 @@ def find_clipped_loops(topomap, half_edges = None):
     # 1. reconstruct loops fully inside
     # 2. reconstruct clipped loops, starting on a edge that is not a border segment
     # 3. reconstruct remaining loops (consisting of border segments only)
-    for item in topomap.half_edges.itervalues():
+    for item in topomap.half_edges.values():
         for edge in (item, item.twin):
             if edge.label == VISITED:
                 continue
@@ -93,15 +93,15 @@ def find_clipped_loops(topomap, half_edges = None):
                     try:
                         assert edge.face is start.face, "{0}, reconstructing: {1}".format(edge, start.face)
                     except:
-                        print "ERROR: {0}".format(edge)
-                        print "... reconstructing: {0}".format(start.face)
-                        print "...", edge, edge.face, start.face
-                        print ""
+                        print("ERROR: {0}".format(edge))
+                        print("... reconstructing: {0}".format(start.face))
+                        print("...", edge, edge.face, start.face)
+                        print("")
                         raise
-                    edge = edge.next
+                    edge = edge.__next__
                     if edge is start:
                         break
-    for item in topomap.half_edges.itervalues():
+    for item in topomap.half_edges.values():
         for edge in (item, item.twin):
             if edge.label == VISITED:
                 continue
@@ -123,15 +123,15 @@ def find_clipped_loops(topomap, half_edges = None):
                     try:
                         assert edge.face is start.face, "{0}, reconstructing: {1}".format(edge, start.face)
                     except:
-                        print "ERROR: {0}".format(edge)
-                        print "... reconstructing: {0}".format(start.face)
-                        print "...", edge, edge.face, start.face
-                        print ""
+                        print("ERROR: {0}".format(edge))
+                        print("... reconstructing: {0}".format(start.face))
+                        print("...", edge, edge.face, start.face)
+                        print("")
                         raise
-                    edge = edge.next
+                    edge = edge.__next__
                     if edge is start:
                         break
-    for item in topomap.half_edges.itervalues():
+    for item in topomap.half_edges.values():
         for edge in (item, item.twin):
             if edge.label == VISITED:
                 continue
@@ -151,19 +151,19 @@ def find_clipped_loops(topomap, half_edges = None):
                     try:
                         assert edge.face is start.face, "{0}, reconstructing: {1}".format(edge, start.face)
                     except:
-                        print "ERROR: {0}".format(edge)
-                        print "... reconstructing: {0}".format(start.face)
-                        print "...", edge, edge.face, start.face
-                        print ""
+                        print("ERROR: {0}".format(edge))
+                        print("... reconstructing: {0}".format(start.face))
+                        print("...", edge, edge.face, start.face)
+                        print("")
                         raise
-                    edge = edge.next
+                    edge = edge.__next__
                     if edge is start:
                         break
     #comment for use of qgis plugin
 #     fh = open('/tmp/tm.wkt', 'w')
 #     fh.write('id;wkt;clipped\n')
     to_remove = []
-    for face in topomap.faces.itervalues():
+    for face in topomap.faces.values():
         if not face.loops:
             to_remove.append(face.id)
             continue
@@ -171,8 +171,8 @@ def find_clipped_loops(topomap, half_edges = None):
             continue
         try:
             geoms = face.multigeometry()
-        except Exception, err:
-            print err
+        except Exception as err:
+            print(err)
             pass
 #         if geoms:
 #             for geom in geoms:

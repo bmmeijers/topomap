@@ -1,6 +1,6 @@
 import sys
 from simplegeom.geometry import Point, LineString, Envelope
-from primitives import angle
+from .primitives import angle
 
 class EdgeClipper(object):
     def __init__(self, bbox, border_face_id = None):
@@ -40,7 +40,7 @@ class EdgeClipper(object):
         clipped_geometry = LineString(srid = geometry.srid)
         new_sn_id = None
         new_en_id = None
-        for s in xrange(segment_ct):
+        for s in range(segment_ct):
             first_segment = False
             last_segment = False
             t = s + 1
@@ -194,7 +194,7 @@ class EdgeClipper(object):
         #
         # The following is the Liang-Barsky Algorithm
         # for segment clipping
-        x1, y1, x2, y2 = map(float, [x1, y1, x2, y2])
+        x1, y1, x2, y2 = list(map(float, [x1, y1, x2, y2]))
         dx = x2 - x1
         dy = y2 - y1
         P = [-dx, dx, -dy, dy]
@@ -203,7 +203,7 @@ class EdgeClipper(object):
         u2 = 1.0
         # valid means inside OR partially inside, i.e. clipped
         valid = True 
-        for i in xrange(4): 
+        for i in range(4): 
             # 0 left, 1 right, 2 bottom, 3 top
             pi = P[i]
             qi = q[i]
@@ -280,7 +280,7 @@ class PartialProxy:
     @property
     def faces(self):
         d = {}
-        for key, value in zip(self.partial.faces.iterkeys(), self.partial.faces.itervalues()):
+        for key, value in zip(iter(self.partial.faces.keys()), iter(self.partial.faces.values())):
             if not value.attrs['locked']:
                 d[key] = value
         return d
@@ -372,7 +372,7 @@ def test():
 
     # - print clipped edges --------------------------------    
     for item in ec.clipped:
-        print item
+        print(item)
 
     # - plot --------------------------------
     for item in ec.border_segments:

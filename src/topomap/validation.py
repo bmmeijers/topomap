@@ -3,7 +3,7 @@ Created on Jun 26, 2012
 
 @author: martijn
 """
-from primitives import increasing
+from .primitives import increasing
 
 class TopoMapValidator(object):
     def __init__(self, topo_map):
@@ -18,23 +18,23 @@ class TopoMapValidator(object):
         self.validate_face_geometries()
 
     def validate_angles(self):
-        for edge in self.topo_map.half_edges.itervalues():
+        for edge in self.topo_map.half_edges.values():
             assert increasing( [h.angle for h in edge.origin.half_edges] ), "n{0}: {1}".format(edge.origin.id, [(h.id, h.angle) for h in edge.origin.half_edges])
 #            assert increasing( [h.angle for h in edge.twin.origin.half_edges] ), "n{0}: {1}".format(edge.twin.origin.id, [(h.id, h.angle) for h in edge.twin.origin.half_edges])
         
     def validate_faces(self):
-        for face in self.topo_map.faces.itervalues():
+        for face in self.topo_map.faces.values():
             try:
                 assert len(face.loops) > 0
             except:
                 raise Exception('{0} has no loops'.format(face))
 
     def validate_face_geometries(self):
-        for face in self.topo_map.faces.itervalues():
+        for face in self.topo_map.faces.values():
             face.multigeometry()
 
     def validate_loops(self):
-        for edge in self.topo_map.half_edges.itervalues():
+        for edge in self.topo_map.half_edges.values():
             try:
                 assert edge.face is edge.loop.face
                 assert edge.loop in edge.face.loops
@@ -47,7 +47,7 @@ class TopoMapValidator(object):
                         face = edge.loop.face
                     raise Exception('{0} expected {1}, found {2}'.format(edge.id, edge.face, face))
         
-        for face in self.topo_map.faces.itervalues():
+        for face in self.topo_map.faces.values():
             try:
                 assert face.loops
             except:
@@ -60,12 +60,12 @@ class TopoMapValidator(object):
                 assert loop.start is not None
 
     def validate_nodes(self):
-        for node in self.topo_map.nodes.itervalues():
+        for node in self.topo_map.nodes.values():
             for edge in node.half_edges:
                 assert edge.origin is node
 
     def validate_edges_around_node(self):
-        for node in self.topo_map.nodes.itervalues():
+        for node in self.topo_map.nodes.values():
             for edge in node.half_edges:
                 assert edge.origin is node
                 assert edge.prev.twin.origin is node

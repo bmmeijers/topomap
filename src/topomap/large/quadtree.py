@@ -12,9 +12,7 @@ logging.basicConfig(
     stream=sys.stderr, 
     level=logging.DEBUG)
 #from brep.io import geom_from_binary
-# from connection.connect import ConnectionFactory
-# from connection.stateful import record
-from connection import ConnectionFactory
+from connection.connect import ConnectionFactory
 from connection.stateful import record
 from topomap.io import TopoMapFactory
 

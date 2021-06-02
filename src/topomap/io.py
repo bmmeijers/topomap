@@ -4,12 +4,12 @@ import logging
 #from simplegeom.postgis import register
 from simplegeom.wkb import dumps
 
-from connection import ConnectionFactory
+from connection import connection
 #register()
 
-from topomap import TopoMap
-from loopfactory import find_loops
-from clipper import EdgeClipper
+from .topomap import TopoMap
+from .loopfactory import find_loops
+from .clipper import EdgeClipper
 import warnings
 
 class TopoMapFactory(object):
@@ -26,92 +26,93 @@ class TopoMapFactory(object):
                  where = None):
         """Retrieves all Nodes, Edges, Faces for TopoMap ``name``
         """
-        connection = ConnectionFactory.connection(True)
-        universe_id = universe_id
-        srid = srid
-        # TODO: get universe / srid from metadata if not given
-        assert universe_id is not None
-        assert srid is not None
-        topo_map = TopoMap(universe_id = universe_id, srid = srid)
+        with connection(True) as conn:
+            universe_id = universe_id
+            srid = srid
+            name = name
+            # TODO: get universe / srid from metadata if not given
+            assert universe_id is not None
+            assert srid is not None
+            topo_map = TopoMap(universe_id = universe_id, srid = srid)
 
-        if attribute_mapping is not None:
-            # faces
-            sql = """SELECT 
-                {1[face_id]}::int,
-                {1[feature_class]}::int 
-            FROM
-                {0}_face
-            """.format(name, attribute_mapping)
-        else:
-            # faces
-            sql = """SELECT 
-                face_id::int,
-                feature_class::int 
-            FROM
-                {0}_face
+            if attribute_mapping is not None:
+                # faces
+                sql = """SELECT 
+                    {1[face_id]}::int,
+                    {1[feature_class]}::numeric(3,1) --int 
+                FROM
+                    {0}_face
+                """.format(name, attribute_mapping)
+            else:
+                # faces
+                sql = """SELECT 
+                    face_id::int,
+                    feature_class::int 
+                FROM
+                    {0}_face
+                    """.format(name)
+            if where is not None:
+                sql += where
+            for face_id, feature_class, in conn.irecordset(sql):
+                assert face_id is not None
+                topo_map.add_face(face_id, 
+                                  attrs = {'feature_class': feature_class,})
+            logging.debug(sql)
+            if attribute_mapping is not None:
+                # faces
+                sql = """SELECT 
+                    {1[edge_id]}::int,
+                    {1[start_node_id]}::int, 
+                    {1[end_node_id]}::int,
+                    
+                    {1[left_face_id]}::int, 
+                    {1[right_face_id]}::int,
+                    
+                    {1[geometry]}::geometry
+                FROM 
+                    {0}_edge 
+                """.format(name, attribute_mapping)
+                
+            else:
+                #edges
+                sql = """SELECT 
+                    edge_id::int,
+                    start_node_id::int, 
+                    end_node_id::int,
+                    
+                    left_face_id::int, 
+                    right_face_id::int,
+                    
+                    geometry::geometry
+                FROM 
+                    {0}_edge 
                 """.format(name)
-        if where is not None:
-            sql += where
-        for face_id, feature_class, in connection.irecordset(sql):
-            assert face_id is not None
-            topo_map.add_face(face_id, 
-                              attrs = {'feature_class': feature_class,})
-        logging.debug(sql)
-        if attribute_mapping is not None:
-            # faces
-            sql = """SELECT 
-                {1[edge_id]}::int,
-                {1[start_node_id]}::int, 
-                {1[end_node_id]}::int,
-                
-                {1[left_face_id]}::int, 
-                {1[right_face_id]}::int,
-                
-                {1[geometry]}::geometry
-            FROM 
-                {0}_edge 
-            """.format(name, attribute_mapping)
+            if where is not None:
+                sql += where
             
-        else:
-            #edges
-            sql = """SELECT 
-                edge_id::int,
-                start_node_id::int, 
-                end_node_id::int,
-                
-                left_face_id::int, 
-                right_face_id::int,
-                
-                geometry::geometry
-            FROM 
-                {0}_edge 
-            """.format(name)
-        if where is not None:
-            sql += where
-        
-        logging.debug(sql)
-        
-        for edge_id, \
-            start_node_id, \
-            end_node_id, \
-            left_face_id, \
-            right_face_id, \
-            geometry, in connection.irecordset(sql):
-            try:
-                assert edge_id is not None
-                assert start_node_id is not None
-                assert end_node_id is not None
-                assert left_face_id is not None
-                assert right_face_id is not None
-                assert geometry is not None
-                #for item in (edge_id, start_node_id, end_node_id, left_face_id, right_face_id, geometry):
-                #   assert item is not None, item
-            except AssertionError:
-                raise ValueError("Edge {0} not correct -- None field found".format(edge_id))
-            topo_map.add_edge(edge_id,
-                              start_node_id, end_node_id,
-                              left_face_id, right_face_id,
-                              geometry)
+            logging.debug(sql)
+            
+            for edge_id, \
+                start_node_id, \
+                end_node_id, \
+                left_face_id, \
+                right_face_id, \
+                geometry, in conn.irecordset(sql):
+                try:
+                    assert edge_id is not None
+                    assert start_node_id is not None
+                    assert end_node_id is not None
+                    assert left_face_id is not None
+                    assert right_face_id is not None
+                    assert geometry is not None
+                    #for item in (edge_id, start_node_id, end_node_id, left_face_id, right_face_id, geometry):
+                    #   assert item is not None, item
+                except AssertionError:
+                    raise ValueError("Edge {0} not correct -- None field found".format(edge_id))
+                topo_map.add_edge(edge_id,
+                                  start_node_id, end_node_id,
+                                  left_face_id, right_face_id,
+                                  geometry)
         find_loops(topo_map)
         return topo_map
 
@@ -298,7 +299,7 @@ class TopoMapFactory(object):
         3) forms loops with clipped polygons         
         """
         from simplegeom.geometry import Envelope
-        import loopfactory
+        from . import loopfactory
 
         connection = ConnectionFactory.connection(True)
         universe_id = universe_id
@@ -323,9 +324,9 @@ class TopoMapFactory(object):
             AS '
             with recursive walk_hierarchy(id, parentid, il, ih) as
             (
-                    select face_id, parent_face_id, imp_low, imp_high from {0}_face_hierarchy where face_id = $1
+                    select face_id, parent_face_id, imp_low, imp_high from {0}_tgap_face_hierarchy where face_id = $1
                 UNION ALL
-                    select fh.face_id, fh.parent_face_id, fh.imp_low, fh.imp_high from {0}_face_hierarchy fh,
+                    select fh.face_id, fh.parent_face_id, fh.imp_low, fh.imp_high from {0}_tgap_face_hierarchy fh,
                     walk_hierarchy w
                     where w.parentid = fh.face_id and w.ih <= $2
             )
@@ -339,7 +340,7 @@ class TopoMapFactory(object):
             mbr_geometry,
             feature_class::int
         FROM
-            {0}_face
+            {0}_tgap_face
         WHERE
             mbr_geometry && '{1}'::geometry AND imp_low <= {2} AND imp_high > {2}
             """.format(name, dumps(bbox.polygon), imp) # as_hexewkb(bbox, srid))
@@ -359,7 +360,7 @@ class TopoMapFactory(object):
             translate_face(right_face_id_low, {2})::int,
             geometry::geometry
         FROM 
-            {0}_edge
+            {0}_tgap_edge
         WHERE
             geometry && '{1}'::geometry AND imp_low <= {2} AND imp_high > {2}
         """.format(name, dumps(bbox.polygon), imp)
@@ -525,7 +526,7 @@ class TopoMapFactory(object):
             ST_ContainsProperly('{1}', mbr_geometry)
             {2}
             """.format(name, dumps(bbox), exclusion)
-        print faces_sql
+        print(faces_sql)
         #edges
         sql = """SELECT 
             edge_id::int,
@@ -542,7 +543,7 @@ class TopoMapFactory(object):
             (left_face_id IN ({3}) or right_face_id IN ({3}))
             {2}
         """.format(name, dumps(bbox), inclusion, faces_sql)
-        print sql
+        print(sql)
         for edge_id, \
             start_node_id, end_node_id, \
             left_face_id, right_face_id, \
@@ -735,7 +736,7 @@ class PolygonFactory():
             for edge in loop.half_edges:
                 if edge.left_face is edge.face:
                     # lccw / next left
-                    lccw = edge.next
+                    lccw = edge.__next__
                     if lccw.left_face is edge.face:
                         lccw_sign = +1
                     else:
@@ -749,7 +750,7 @@ class PolygonFactory():
                     connection.execute(sqll.format(name), parameters = ( edge.id, lcw_sign * lcw.id, lccw_sign * lccw.id,))
                 if edge.right_face is edge.face:
                     # rccw / next right
-                    rccw = edge.next
+                    rccw = edge.__next__
                     if rccw.right_face is edge.face:
                         rccw_sign = -1
                     else:
@@ -762,6 +763,34 @@ class PolygonFactory():
                         rcw_sign = +1
                     connection.execute(sqlr.format(name), parameters = (edge.id, rcw_sign * rcw.id, rccw_sign * rccw.id,))
 
+##                print ""
+##                print "e", edge.id
+#                if edge.left_face is current_face:
+#                    # next left / lcw
+#                    lcw = edge.next
+#                    if edge.next.left_face is current_face:
+#                        lcw_sign = +1
+#                    else:
+#                        lcw_sign = -1
+#                    # prev left / lccw
+#                    lccw = edge.prev
+#                    if edge.prev.left_face is current_face:
+#                        lccw_sign = +1
+#                    else:
+#                        lccw_sign = -1
 
+#                if edge.right_face is current_face:
+#                    # prev right / rccw
+#                    rccw = edge.prev
+#                    if edge.prev.right_face is current_face:
+#                        rccw_sign = -1
+#                    else:
+#                        rccw_sign = +1
+#                    # next right / rcw
+#                    rcw = edge.next
+#                    if edge.next.right_face is current_face:
+#                        rcw_sign = +1
+#                    else:
+#                        rcw_sign = -1
 if __name__ == "__main__":
     we = TopoMapFactory.topo_map('delft10nl', 0, 28992)
